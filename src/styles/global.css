@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Reset y estilos base */
+:root {
+	--boq-chrometransition-background: #eee;
+	--boq-chrometransition-active-background-opacity: 0.8;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	min-height: 100vh;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	color: rgba(0, 0, 0, .87);
+	font-family: Roboto, RobotoDraft, Helvetica, Arial, sans-serif;
+	background: #ffffff;
+	text-size-adjust: 100%;
+}
+
+* {
+	box-sizing: border-box;
+	-webkit-tap-highlight-color: transparent;
+}

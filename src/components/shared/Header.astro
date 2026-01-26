@@ -1,0 +1,88 @@
+---
+// Header component
+---
+
+<header class="fixed top-0 left-0 z-[1100] w-full h-[67px] flex flex-row items-center justify-between gap-3 py-2 border-b border-[#D1D5DB] text-[#5f6368] bg-[#002B45]">
+	<div class="w-full max-w-none m-0 px-4 md:px-3 flex justify-start items-center gap-3">
+		<a href="/" class="flex items-center gap-2 text-white font-bold text-lg hover:text-white hover:opacity-80 transition-opacity">
+			<span class="text-white text-lg">Tools</span>
+		</a>
+		<!-- Navigation Dropdown -->
+		<div class="relative" id="nav-dropdown-container">
+			<button
+				id="nav-dropdown-button"
+				class="px-3 py-2 text-white hover:bg-white/10 rounded-md transition-colors flex items-center gap-2"
+			>
+				<span id="nav-current-page" class="font-medium">Inicio</span>
+				<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			</button>
+			<div id="nav-dropdown" class="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg overflow-hidden hidden min-w-[200px]">
+				<a href="/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors nav-link">Inicio</a>
+				<a href="/hoja-de-horas" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors nav-link">Hoja de Horas</a>
+				<a href="/cuadrar-sobordos" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors nav-link">Cuadrar Sobordos</a>
+				<a href="/actualizar-tripulantes" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors nav-link">Actualizar Tripulantes</a>
+				<a href="/calculadora" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors nav-link">Calculadora</a>
+				<a href="/editar-documentos" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors nav-link">Editar Documentos</a>
+			</div>
+		</div>
+	</div>
+	<div class="flex items-center gap-3 px-4">
+		<form id="logout-form" method="POST" action="/api/logout">
+			<button
+				type="submit"
+				class="px-4 py-2 text-white hover:bg-white/10 rounded-md transition-colors flex items-center gap-2"
+				title="Cerrar sesión"
+			>
+				<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+					<polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+					<line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			</button>
+		</form>
+	</div>
+</header>
+
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		const dropdownButton = document.getElementById('nav-dropdown-button');
+		const dropdown = document.getElementById('nav-dropdown');
+		const dropdownContainer = document.getElementById('nav-dropdown-container');
+		const currentPageSpan = document.getElementById('nav-current-page');
+		let isOpen = false;
+
+		// Detectar la página actual
+		const currentPath = window.location.pathname;
+		if (currentPath === '/' || currentPath === '/index') {
+			if (currentPageSpan) currentPageSpan.textContent = 'Inicio';
+		} else if (currentPath.includes('/hoja-de-horas')) {
+			if (currentPageSpan) currentPageSpan.textContent = 'Hoja de Horas';
+		} else if (currentPath.includes('/cuadrar-sobordos')) {
+			if (currentPageSpan) currentPageSpan.textContent = 'Cuadrar Sobordos';
+		} else if (currentPath.includes('/actualizar-tripulantes')) {
+			if (currentPageSpan) currentPageSpan.textContent = 'Actualizar Tripulantes';
+		} else if (currentPath.includes('/calculadora')) {
+			if (currentPageSpan) currentPageSpan.textContent = 'Calculadora';
+		} else if (currentPath.includes('/editar-documentos')) {
+			if (currentPageSpan) currentPageSpan.textContent = 'Editar Documentos';
+		}
+
+		if (dropdownButton && dropdown) {
+			dropdownButton.addEventListener('click', function(e) {
+				e.stopPropagation();
+				isOpen = !isOpen;
+				dropdown.classList.toggle('hidden', !isOpen);
+			});
+
+			// Cerrar al hacer clic fuera
+			document.addEventListener('click', function(e) {
+				if (dropdownContainer && !dropdownContainer.contains(e.target as Node)) {
+					isOpen = false;
+					dropdown?.classList.add('hidden');
+				}
+			});
+		}
+	});
+</script>

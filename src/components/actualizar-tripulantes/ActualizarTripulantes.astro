@@ -1,0 +1,408 @@
+---
+// ActualizarTripulantes component
+---
+
+<div class="flex flex-col items-center min-h-screen bg-[#f4f7f9] pt-[67px] pb-10">
+	<!-- Contenedor principal -->
+	<div id="input-container" class="w-full max-w-[650px]">
+		<!-- Textarea para pegar la lista de nombres -->
+		<div class="p-4">
+			<textarea
+				id="names-textarea"
+				class="w-full p-3 text-base border border-gray-300 rounded-md block resize-y box-border h-[250px] bg-white focus:outline-none focus:border-gray-400 text-gray-800"
+				placeholder="Pega aquí la lista de nombres (uno por línea)"
+			/>
+		</div>
+	</div>
+
+	<!-- Botón Process -->
+	<div id="process-button-container" class="flex justify-center mb-5">
+		<button
+			id="action-button"
+			class="inline-flex items-center px-6 py-2 text-sm font-medium rounded-md text-white bg-[#002B45] focus:outline-none transition-shadow hover:shadow-md"
+		>
+			Procesar
+		</button>
+	</div>
+
+	<!-- Contenedor para el buscador y la tabla generada -->
+	<div id="results-container" class="w-[90%] max-w-[650px] mx-auto hidden">
+		<!-- Buscador -->
+		<div class="mb-3 mt-5">
+			<input
+				id="search-input"
+				type="text"
+				placeholder="Buscar nombres..."
+				class="w-full p-3 text-base border border-gray-300 rounded-md block bg-white focus:outline-none focus:border-gray-400 text-gray-800"
+			/>
+		</div>
+
+		<!-- Tabla -->
+		<div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+		<div class="bg-[#002B45] text-white p-3 border-b border-[#003366]">
+			<div class="flex justify-between items-center">
+				<div class="flex items-center gap-3">
+					<button
+						id="copy-array-button"
+						class="p-1.5 rounded-md hover:bg-white/10 transition-colors text-white focus:outline-none"
+						title="Copiar Script para Consola"
+					>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+						</svg>
+					</button>
+					<span class="font-medium">Tripulantes: <span id="total-count">0</span></span>
+				</div>
+				<span class="font-medium">Checkeados: <span id="checked-count">0</span></span>
+			</div>
+		</div>
+
+			<div class="overflow-x-auto">
+				<table class="w-full">
+					<tbody id="names-tbody">
+						<!-- Rows will be added dynamically -->
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Botón Reiniciar -->
+		<div class="mt-6 flex justify-center">
+			<button
+				id="reset-button"
+				class="inline-flex items-center px-6 py-2 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none transition-shadow hover:shadow-md"
+			>
+				Reiniciar
+			</button>
+		</div>
+	</div>
+
+	<!-- Toast de éxito -->
+	<div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg transition-all duration-300 opacity-0 pointer-events-none z-[60]">
+		Array copiado al portapapeles
+	</div>
+
+	<!-- Diálogo de alerta personalizado -->
+	<div id="alert-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 hidden">
+		<div id="alert-dialog" class="w-full max-w-md rounded-md overflow-hidden shadow-lg transition-opacity duration-200">
+			<!-- Encabezado -->
+			<div class="bg-[#001a33] px-4 py-3 flex items-center justify-between">
+				<h3 class="text-base font-medium text-white">Error</h3>
+				<button id="alert-close" class="rounded-full p-1 text-white hover:bg-white/10">
+					<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+					</svg>
+				</button>
+			</div>
+
+			<!-- Cuerpo del mensaje -->
+			<div class="bg-white px-4 py-3">
+				<p id="alert-message" class="text-sm text-gray-700"></p>
+				<div class="mt-4 flex justify-end">
+					<button
+						id="alert-ok"
+						class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+					>
+						Aceptar
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		let namesData: Array<{ name: string; id: string }> = [];
+		const checkedRows: { [key: string]: boolean } = {};
+
+		const textarea = document.getElementById('names-textarea') as HTMLTextAreaElement;
+		const actionButton = document.getElementById('action-button') as HTMLButtonElement;
+		const copyArrayButton = document.getElementById('copy-array-button') as HTMLButtonElement;
+		const resetButton = document.getElementById('reset-button') as HTMLButtonElement;
+		const inputContainer = document.getElementById('input-container');
+		const processButtonContainer = document.getElementById('process-button-container');
+		const resultsContainer = document.getElementById('results-container');
+		const searchInput = document.getElementById('search-input') as HTMLInputElement;
+		const namesTbody = document.getElementById('names-tbody');
+		const totalCountSpan = document.getElementById('total-count');
+		const checkedCountSpan = document.getElementById('checked-count');
+		const alertOverlay = document.getElementById('alert-overlay');
+		const alertMessage = document.getElementById('alert-message');
+		const alertClose = document.getElementById('alert-close');
+		const alertOk = document.getElementById('alert-ok');
+		const toast = document.getElementById('toast');
+
+		let isTableGenerated = false;
+
+		function showAlert(message: string) {
+			if (alertMessage) alertMessage.textContent = message;
+			if (alertOverlay) alertOverlay.classList.remove('hidden');
+			if (document.body) document.body.style.overflow = 'hidden';
+		}
+
+		function hideAlert() {
+			if (alertOverlay) alertOverlay.classList.add('hidden');
+			if (document.body) document.body.style.overflow = 'auto';
+		}
+
+		function showToast(message: string) {
+			if (!toast) return;
+			toast.textContent = message;
+			toast.classList.remove('opacity-0', 'pointer-events-none');
+			toast.classList.add('opacity-100');
+			
+			setTimeout(() => {
+				toast.classList.remove('opacity-100');
+				toast.classList.add('opacity-0', 'pointer-events-none');
+			}, 3000);
+		}
+
+		function copyArrayToClipboard() {
+			if (namesData.length === 0) return;
+
+			const selectedIds = Object.keys(checkedRows).filter(id => checkedRows[id]);
+			let namesToCopy = selectedIds.length > 0 
+				? namesData.filter(item => checkedRows[item.id]).map(item => item.name)
+				: namesData.map(item => item.name);
+
+			// Script base con concatenación para evitar problemas con Astro
+			let scriptText = 'async function embarcarCrewlist(listaNombres, hora, minutos) {\n';
+			scriptText += '    console.log("Iniciando Crewlist de " + listaNombres.length + " tripulantes...");\n';
+			scriptText += '    let procesados = 0;\n\n';
+			scriptText += '    for (let nombreCompleto of listaNombres) {\n';
+			scriptText += '        console.log("\\n Analizando: " + nombreCompleto);\n\n';
+			scriptText += '        const conectores = ["DE", "DEL", "LA", "LAS", "Y", "LOS"];\n';
+			scriptText += '        let palabras = nombreCompleto.toUpperCase().trim().split(/\\s+/);\n';
+			scriptText += '        let filtradas = palabras.filter(p => !conectores.includes(p));\n';
+			scriptText += '        let terminoBusqueda = filtradas.reduce((a, b) => a.length >= b.length ? a : b);\n\n';
+			scriptText += '        document.querySelectorAll("select.form-control").forEach(sel => {\n';
+			scriptText += '            sel.selectedIndex = 0;\n';
+			scriptText += '            sel.dispatchEvent(new Event("change", { bubbles: true }));\n';
+			scriptText += '        });\n\n';
+			scriptText += '        const inputBusqueda = document.querySelector(\'input[placeholder*="surname"], .form-control[type="text"]\');\n';
+			scriptText += '        if (inputBusqueda) {\n';
+			scriptText += '            inputBusqueda.value = terminoBusqueda;\n';
+			scriptText += '            inputBusqueda.dispatchEvent(new Event("input", { bubbles: true }));\n';
+			scriptText += '        }\n\n';
+			scriptText += '        const btnFilter = Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Filter"));\n';
+			scriptText += '        if (btnFilter) btnFilter.click();\n\n';
+			scriptText += '        await new Promise(r => setTimeout(r, 700));\n\n';
+			scriptText += '        const filas = Array.from(document.querySelectorAll("tbody tr"));\n';
+			scriptText += '        let filaGanadora = filas.find(fila => {\n';
+			scriptText += '            const textoFila = fila.innerText.toUpperCase();\n';
+			scriptText += '            return palabras.every(p => textoFila.includes(p));\n';
+			scriptText += '        });\n\n';
+			scriptText += '        if (filaGanadora) {\n';
+			scriptText += '            const checkbox = filaGanadora.querySelector(\'input[type="checkbox"]\');\n';
+			scriptText += '            if (checkbox && !checkbox.checked) {\n';
+			scriptText += '                checkbox.click();\n';
+			scriptText += '                await new Promise(r => setTimeout(r, 400));\n';
+			scriptText += '            }\n\n';
+			scriptText += '            const btnBoard = Array.from(document.querySelectorAll("button")).find(b => b.innerText.trim() === "Board");\n';
+			scriptText += '            if (btnBoard && !btnBoard.disabled) {\n';
+			scriptText += '                btnBoard.click();\n';
+			scriptText += '                await new Promise(r => setTimeout(r, 800));\n\n';
+			scriptText += '                const inputs = document.querySelectorAll(".modal-body input");\n';
+			scriptText += '                if (inputs.length >= 3) {\n';
+			scriptText += '                    inputs[1].value = hora;\n';
+			scriptText += '                    inputs[2].value = minutos;\n';
+			scriptText += '                    ["input", "change", "blur"].forEach(e => {\n';
+			scriptText += '                        inputs[1].dispatchEvent(new Event(e, { bubbles: true }));\n';
+			scriptText += '                        inputs[2].dispatchEvent(new Event(e, { bubbles: true }));\n';
+			scriptText += '                    });\n\n';
+			scriptText += '                    const btnConfirmar = document.getElementById("modalAccept");\n';
+			scriptText += '                    if (btnConfirmar) {\n';
+			scriptText += '                        btnConfirmar.click();\n';
+			scriptText += '                        procesados++;\n';
+			scriptText += '                        console.log("✅ " + nombreCompleto + " procesado correctamente.");\n';
+			scriptText += '                    }\n';
+			scriptText += '                }\n';
+			scriptText += '            }\n';
+			scriptText += '        } else {\n';
+			scriptText += '            console.warn("⚠️ No se encontró coincidencia exacta para " + nombreCompleto);\n';
+			scriptText += '        }\n\n';
+			scriptText += '        await new Promise(r => setTimeout(r, 1200));\n';
+			scriptText += '    }\n';
+			scriptText += '    console.log("\\n Crewlist finalizada. Total embarcados: " + procesados);\n';
+			scriptText += '}\n\n';
+			scriptText += '// Solicitar hora y minutos al pegar el script en la consola\n';
+			scriptText += 'const h = prompt("Introduce la HORA (HH):", "08") || "08";\n';
+			scriptText += 'const m = prompt("Introduce los MINUTOS (MM):", "00") || "00";\n\n';
+			scriptText += 'embarcarCrewlist(' + JSON.stringify(namesToCopy) + ', h, m);';
+			
+			navigator.clipboard.writeText(scriptText).then(() => {
+				showToast(`Script para ${namesToCopy.length} tripulantes copiado`);
+			}).catch(err => {
+				console.error('Error al copiar:', err);
+				showAlert('No se pudo copiar al portapapeles');
+			});
+		}
+
+		function generateTable() {
+			const pastedText = textarea.value.trim();
+			if (!pastedText) {
+				showAlert('Introduce alguna lista de nombres');
+				return;
+			}
+
+			const names = pastedText
+				.split('\n')
+				.map((line) => line.trim())
+				.filter((name) => name);
+
+			// Crear objetos con IDs únicos para manejar duplicados
+			namesData = names.map((name, index) => ({
+				name: name,
+				id: `${name}-${index}`,
+			}));
+
+			// Ordenar por nombre manteniendo los IDs únicos
+			namesData.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+
+			// Limpiar checkboxes anteriores
+			Object.keys(checkedRows).forEach(key => delete checkedRows[key]);
+
+			isTableGenerated = true;
+			if (inputContainer) inputContainer.classList.add('hidden');
+			if (processButtonContainer) processButtonContainer.classList.add('hidden');
+			if (resultsContainer) resultsContainer.classList.remove('hidden');
+			renderTable();
+		}
+
+		function resetForm() {
+			namesData = [];
+			Object.keys(checkedRows).forEach(key => delete checkedRows[key]);
+			isTableGenerated = false;
+			textarea.value = '';
+			if (inputContainer) inputContainer.classList.remove('hidden');
+			if (processButtonContainer) processButtonContainer.classList.remove('hidden');
+			if (resultsContainer) resultsContainer.classList.add('hidden');
+			if (searchInput) searchInput.value = '';
+		}
+
+		function toggleRow(id: string, checked: boolean) {
+			if (checked) {
+				checkedRows[id] = true;
+			} else {
+				delete checkedRows[id];
+			}
+			updateCheckedCount();
+		}
+
+		function updateCheckedCount() {
+			const count = Object.keys(checkedRows).filter((key) => checkedRows[key]).length;
+			if (checkedCountSpan) checkedCountSpan.textContent = count.toString();
+		}
+
+		function filterNames() {
+			const searchTerm = searchInput.value.toLowerCase().trim();
+			const filtered = namesData.filter((item) => 
+				item.name.toLowerCase().includes(searchTerm)
+			);
+			renderTable(filtered);
+		}
+
+		function renderTable(filteredNames?: Array<{ name: string; id: string }>) {
+			const namesToRender = filteredNames || namesData;
+			
+			if (!namesTbody || !totalCountSpan) return;
+
+			// Update total count
+			totalCountSpan.textContent = namesData.length.toString();
+
+			// Clear and render rows
+			namesTbody.innerHTML = '';
+
+			if (namesToRender.length > 0) {
+				namesToRender.forEach((item) => {
+					const row = document.createElement('tr');
+					const isChecked = !!checkedRows[item.id];
+					
+					row.className = `border-b border-gray-200 ${isChecked ? 'bg-amber-100' : ''}`;
+
+					row.innerHTML = `
+						<td class="p-3 w-[50px] text-center">
+							<div class="inline-block relative w-5 h-5 align-top mt-0.5">
+								<input
+									type="checkbox"
+									id="checkbox-${item.id.replace(/\s+/g, '-')}"
+									class="peer sr-only"
+									${isChecked ? 'checked' : ''}
+								/>
+								<label
+									for="checkbox-${item.id.replace(/\s+/g, '-')}"
+									class="absolute inset-0 flex items-center justify-center border-2 border-gray-300 rounded-md cursor-pointer bg-white peer-checked:bg-amber-500 peer-checked:border-amber-500"
+								>
+									<svg
+										class="w-3 h-3 text-white absolute"
+										style="opacity: ${isChecked ? 1 : 0}"
+										viewBox="0 0 24 24"
+										fill="none"
+										xmlns="http://www.w3.org/2000/svg"
+									>
+										<path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+									</svg>
+								</label>
+							</div>
+						</td>
+						<td class="p-3 text-gray-800">${item.name}</td>
+					`;
+
+					namesTbody.appendChild(row);
+				});
+
+				// Add event listeners to checkboxes
+				namesToRender.forEach((item) => {
+					const checkbox = document.getElementById(`checkbox-${item.id.replace(/\s+/g, '-')}`) as HTMLInputElement;
+					if (checkbox) {
+						checkbox.addEventListener('change', function(e) {
+							toggleRow(item.id, checkbox.checked);
+							renderTable();
+						});
+					}
+				});
+			} else {
+				namesTbody.innerHTML = `
+					<tr>
+						<td colspan="2" class="p-4 text-center text-gray-500">
+							No se encontraron resultados
+						</td>
+					</tr>
+				`;
+			}
+		}
+
+		// Event listeners
+		actionButton.addEventListener('click', generateTable);
+		
+		if (copyArrayButton) {
+			copyArrayButton.addEventListener('click', copyArrayToClipboard);
+		}
+		
+		if (resetButton) {
+			resetButton.addEventListener('click', resetForm);
+		}
+
+		if (searchInput) {
+			searchInput.addEventListener('input', filterNames);
+		}
+
+		if (alertClose) {
+			alertClose.addEventListener('click', hideAlert);
+		}
+
+		if (alertOk) {
+			alertOk.addEventListener('click', hideAlert);
+		}
+
+		if (alertOverlay) {
+			alertOverlay.addEventListener('click', function(e) {
+				if (e.target === alertOverlay) {
+					hideAlert();
+				}
+			});
+		}
+	});
+</script>
+

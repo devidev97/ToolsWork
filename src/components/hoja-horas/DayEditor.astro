@@ -1,0 +1,802 @@
+---
+interface Props {
+  className?: string;
+}
+
+const { className = '' } = Astro.props;
+---
+
+<div class={`p-4 min-h-[400px] ${className}`}>
+  <!-- Header con día seleccionado y toggle festivo -->
+  <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+    <h3 class="text-lg font-medium text-gray-900 capitalize selected-day-title" id="selected-day-title">
+      Seleccione un día
+    </h3>
+    <label class="relative inline-flex items-center cursor-pointer holiday-toggle hidden">
+      <div class="relative">
+        <input
+          type="checkbox"
+          class="sr-only peer holiday-checkbox"
+          id="holiday-checkbox"
+        />
+        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-0 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#002B45]"></div>
+      </div>
+      <span class="ml-2 text-sm font-semibold text-gray-600">Marcar Día Festivo</span>
+    </label>
+  </div>
+
+  <!-- Contenido del editor -->
+  <div class="day-editor-content" id="day-editor-content">
+    <p class="text-center text-gray-600 text-sm">Seleccione un día para ver los detalles</p>
+  </div>
+
+  <!-- Formulario del día (oculto inicialmente) -->
+  <div class="space-y-4 day-editor-form hidden" id="day-editor-form">
+    <!-- Selector de puesto -->
+    <div class="flex flex-col space-y-1 mb-4">
+      <label class="text-sm font-medium text-gray-600 text-center w-full">
+        Puesto
+      </label>
+      <div class="grid grid-cols-1 gap-2">
+        <!-- Desplegable de puestos -->
+        <div class="relative" id="position-dropdown-container">
+        <button
+          type="button"
+          id="position-button"
+          class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-0 bg-gray-50 flex items-center justify-between"
+        >
+            <span id="position-text" class="truncate">Seleccionar puesto</span>
+            <svg class="h-4 w-4 text-gray-600 flex-shrink-0 ml-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div id="position-dropdown" class="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg overflow-auto hidden" style="max-height: 240px;">
+          <button type="button" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 block position-option" data-value="">
+            Seleccionar puesto
+          </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Campos de tiempo (solo visible para puestos con horario) -->
+    <div class="space-y-4 time-section hidden" id="time-section">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="work-start" class="block text-xs font-medium text-gray-600 text-center w-full mb-1">
+            Jornada Iniciada
+          </label>
+          <div class="w-full max-w-[120px] mx-auto">
+            <input
+              id="work-start"
+              type="text"
+              maxlength="5"
+              pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+              class="work-time-input w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:border-gray-400 text-center bg-gray-50"
+            />
+          </div>
+        </div>
+        <div>
+          <label for="work-end" class="block text-xs font-medium text-gray-600 text-center w-full mb-1">
+            Jornada Finalizada
+          </label>
+          <div class="w-full max-w-[120px] mx-auto">
+            <input
+              id="work-end"
+              type="text"
+              maxlength="5"
+              pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+              class="work-time-input w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:border-gray-400 text-center bg-gray-50"
+            />
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <!-- Resumen de horas -->
+    <div class="grid grid-cols-2 gap-4 mt-3 hours-summary hidden" id="hours-summary">
+      <!-- Horas Totales (siempre visible cuando hay horas) -->
+      <div class="flex flex-col items-center">
+        <label class="text-xs text-gray-600 mb-0.5 flex items-center justify-center gap-1 w-full">
+          <div class="w-3 h-3 rounded-full bg-green-500"></div>
+          <span>Horas Totales</span>
+        </label>
+        <div class="w-full max-w-[120px] mx-auto">
+          <input
+            type="text"
+            id="total-hours"
+            value="0.00"
+            readonly
+            class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 text-center focus:outline-none focus:ring-0 focus:border-gray-300"
+          />
+        </div>
+      </div>
+      
+      <!-- Horas Extras (solo visible si > 0) -->
+      <div class="flex flex-col items-center extra-hours-display hidden">
+        <label class="text-xs text-gray-600 mb-0.5 flex items-center justify-center gap-1 w-full">
+          <div class="w-3 h-3 rounded-full bg-red-500"></div>
+          <span>Horas Extras</span>
+        </label>
+        <div class="w-full max-w-[120px] mx-auto">
+          <input
+            type="text"
+            id="extra-hours"
+            value="0.00"
+            readonly
+            class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 text-center focus:outline-none focus:ring-0 focus:border-gray-300"
+          />
+        </div>
+      </div>
+
+      <!-- Horas Nocturnas (solo visible si > 0) -->
+      <div class="flex flex-col items-center night-hours-display hidden">
+        <label class="text-xs text-gray-600 mb-0.5 flex items-center justify-center gap-1 w-full">
+          <div class="w-3 h-3 rounded-full bg-[#002B45]"></div>
+          <span>Horas Nocturnas</span>
+        </label>
+        <div class="w-full max-w-[120px] mx-auto">
+          <input
+            type="text"
+            id="night-hours"
+            value="0.00"
+            readonly
+            class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 text-center focus:outline-none focus:ring-0 focus:border-gray-300"
+          />
+        </div>
+      </div>
+
+      <!-- Horas Festivas (solo visible si > 0) -->
+      <div class="flex flex-col items-center holiday-hours-display hidden">
+        <label class="text-xs text-gray-600 mb-0.5 flex items-center justify-center gap-1 w-full">
+          <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <span>Horas Festivas</span>
+        </label>
+        <div class="w-full max-w-[120px] mx-auto">
+          <input
+            type="text"
+            id="holiday-hours"
+            value="0.00"
+            readonly
+            class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 text-center focus:outline-none focus:ring-0 focus:border-gray-300"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    let currentSelectedDate: Date | null = null;
+    // Almacenamiento compartido en memoria (no persiste al recargar)
+    if (!(window as any).timeEntriesData) {
+      (window as any).timeEntriesData = {};
+    }
+    const entryData = (window as any).timeEntriesData;
+    
+    let isSelectOpen = false;
+    let isMobile = false;
+
+    // Elementos del DOM
+    const titleElement = document.getElementById('selected-day-title');
+    const contentElement = document.getElementById('day-editor-content');
+    const formElement = document.getElementById('day-editor-form');
+    const positionButton = document.getElementById('position-button');
+    const positionText = document.getElementById('position-text');
+    const positionDropdown = document.getElementById('position-dropdown');
+    const positionDropdownContainer = document.getElementById('position-dropdown-container');
+    const timeSectionElement = document.getElementById('time-section');
+    const workStartInput = document.getElementById('work-start') as HTMLInputElement;
+    const workEndInput = document.getElementById('work-end') as HTMLInputElement;
+    const holidayCheckbox = document.getElementById('holiday-checkbox') as HTMLInputElement;
+    const holidayToggle = document.querySelector('.holiday-toggle');
+    const hoursSummary = document.getElementById('hours-summary');
+
+    // Configuración de puestos (igual que en Next.js)
+    const availablePositions: Record<string, { start: string; end: string } | string> = {
+      'CM': { start: '06:30', end: '14:30' },
+      'CT': { start: '14:30', end: '22:30' },
+      'CTd': { start: '15:15', end: '23:15' },
+      'CN': { start: '22:30', end: '06:30' },
+      'AM': { start: '07:00', end: '15:00' },
+      'AT': { start: '15:00', end: '23:00' },
+      'AN': { start: '23:00', end: '07:00' },
+      'TM1': { start: '06:00', end: '14:00' },
+      'TT1': { start: '14:00', end: '22:00' },
+      'TN1': { start: '22:00', end: '06:00' },
+      'TM': { start: '07:00', end: '15:00' },
+      'TT': { start: '15:00', end: '23:00' },
+      'TN': { start: '23:00', end: '07:00' },
+      '00:00': { start: '00:00', end: '8:00' },
+      '00:30': { start: '00:30', end: '8:30' },
+      '01:00': { start: '01:00', end: '9:00' },
+      '01:30': { start: '01:30', end: '9:30' },
+      '02:00': { start: '02:00', end: '10:00' },
+      '02:30': { start: '02:30', end: '10:30' },
+      '03:00': { start: '03:00', end: '11:00' },
+      '03:30': { start: '03:30', end: '11:30' },
+      '04:00': { start: '04:00', end: '12:00' },
+      '04:30': { start: '04:30', end: '12:30' },
+      '05:00': { start: '05:00', end: '13:00' },
+      '05:30': { start: '05:30', end: '13:30' },
+      '06:00': { start: '06:00', end: '14:00' },
+      '06:30': { start: '06:30', end: '14:30' },
+      '07:00': { start: '07:00', end: '15:00' },
+      '07:30': { start: '07:30', end: '15:30' },
+      '08:00': { start: '08:00', end: '16:00' },
+      '08:30': { start: '08:30', end: '16:30' },
+      '09:00': { start: '09:00', end: '17:00' },
+      '09:30': { start: '09:30', end: '17:30' },
+      '10:00': { start: '10:00', end: '18:00' },
+      '10:30': { start: '10:30', end: '18:30' },
+      '11:00': { start: '11:00', end: '19:00' },
+      '11:30': { start: '11:30', end: '19:30' },
+      '12:00': { start: '12:00', end: '20:00' },
+      '12:30': { start: '12:30', end: '20:30' },
+      '13:00': { start: '13:00', end: '21:00' },
+      '13:30': { start: '13:30', end: '21:30' },
+      '14:00': { start: '14:00', end: '22:00' },
+      '14:30': { start: '14:30', end: '22:30' },
+      '15:00': { start: '15:00', end: '23:00' },
+      '15:30': { start: '15:30', end: '23:30' },
+      '16:00': { start: '16:00', end: '00:00' },
+      '16:30': { start: '16:30', end: '00:30' },
+      '17:00': { start: '17:00', end: '01:00' },
+      '17:30': { start: '17:30', end: '01:30' },
+      '18:00': { start: '18:00', end: '02:00' },
+      '18:30': { start: '18:30', end: '02:30' },
+      '19:00': { start: '19:00', end: '03:00' },
+      '19:30': { start: '19:30', end: '03:30' },
+      '20:00': { start: '20:00', end: '04:00' },
+      '20:30': { start: '20:30', end: '04:30' },
+      '21:00': { start: '21:00', end: '05:00' },
+      '21:30': { start: '21:30', end: '05:30' },
+      '22:00': { start: '22:00', end: '06:00' },
+      '22:30': { start: '22:30', end: '06:30' },
+      '23:00': { start: '23:00', end: '07:00' },
+      '23:30': { start: '23:30', end: '07:30' },
+      'D': 'Descanso',
+      'P': 'Permiso',
+      'B': 'Baja',
+      'V': 'Vacaciones',
+      '--': 'Sin asignar'
+    };
+
+    const noHoursPositions = ['D', 'P', 'B', 'V', '--'];
+    const standardDailyHours = 8;
+    const nightStart = '22:00';
+    const nightEnd = '06:00';
+
+    const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+
+    // Detectar tamaño de pantalla
+    function checkIfMobile() {
+      isMobile = window.innerWidth < 768;
+    }
+
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+
+    function initializePositionDropdown() {
+      if (!positionDropdown) return;
+      positionDropdown.innerHTML = '';
+
+      // Opción por defecto
+      const defaultOption = document.createElement('button');
+      defaultOption.type = 'button';
+      defaultOption.className = 'w-full text-left px-4 py-2 text-sm hover:bg-gray-100 block position-option';
+      defaultOption.dataset.value = '';
+      defaultOption.textContent = 'Seleccionar puesto';
+      positionDropdown.appendChild(defaultOption);
+
+      // Opciones de puestos
+      Object.entries(availablePositions).forEach(([key, value]) => {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'w-full text-left px-4 py-2 text-sm hover:bg-gray-100 block position-option';
+        option.dataset.value = key;
+        option.textContent = typeof value === 'string' ? value : key;
+        positionDropdown.appendChild(option);
+      });
+
+      // Event listeners para las opciones
+      positionDropdown.querySelectorAll('.position-option').forEach(option => {
+        option.addEventListener('click', function(this: HTMLButtonElement) {
+          const value = this.dataset.value || '';
+          selectPosition(value);
+        });
+      });
+    }
+
+    function selectPosition(value: string, silent?: boolean) {
+      if (!positionText) return;
+
+      const position = availablePositions[value];
+      positionText.textContent = value ? (typeof position === 'string' ? position : value) : 'Seleccionar puesto';
+      
+      if (positionDropdown) {
+        positionDropdown.classList.add('hidden');
+        isSelectOpen = false;
+      }
+
+      // Limpiar campo de turno personalizado
+      // (eliminado)
+
+      // Auto-llenar horarios para turnos
+      if (value && typeof position === 'object' && workStartInput && workEndInput) {
+        workStartInput.value = position.start;
+        workEndInput.value = position.end;
+      }
+
+      updateVisibility(value);
+      calculateHours();
+      if (!silent) {
+      saveDayData(value);
+      }
+    }
+
+    function updateVisibility(position: string) {
+      const shouldShowHours = position && !noHoursPositions.includes(position);
+      
+      if (timeSectionElement) {
+        timeSectionElement.classList.toggle('hidden', !shouldShowHours);
+      }
+      
+      if (hoursSummary) {
+        hoursSummary.classList.toggle('hidden', !shouldShowHours);
+      }
+
+      if (shouldShowHours) {
+        calculateHours();
+      }
+    }
+
+    function timeToMinutes(time: string): number {
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+
+    function addHours(time: string, hours: number): string {
+      const minutes = timeToMinutes(time) + (hours * 60);
+      const totalHours = Math.floor(minutes / 60) % 24;
+      const totalMinutes = minutes % 60;
+      return `${String(totalHours).padStart(2, '0')}:${String(totalMinutes).padStart(2, '0')}`;
+    }
+
+    function isTimeString(value: string | null | undefined): boolean {
+      return !!value && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(value);
+    }
+
+    function calculateNightHours(startTime: string, endTime: string): number {
+      const startMinutes = timeToMinutes(startTime);
+      const endMinutesRaw = timeToMinutes(endTime);
+      const nightStartMinutes = timeToMinutes(nightStart); // 22:00 -> 1320
+      const nightEndMinutes = timeToMinutes(nightEnd);     // 06:00 -> 360
+
+      if (isNaN(startMinutes) || isNaN(endMinutesRaw)) return 0;
+
+      let workStart = startMinutes;
+      let workEnd = endMinutesRaw;
+      if (workEnd <= workStart) {
+        // Cruza medianoche
+        workEnd += 24 * 60;
+      }
+
+      const overlap = (aStart: number, aEnd: number, bStart: number, bEnd: number) => {
+        const s = Math.max(aStart, bStart);
+        const e = Math.min(aEnd, bEnd);
+        return Math.max(0, e - s);
+      };
+
+      let nightMinutes = 0;
+      // Tramo nocturno del día base: 22:00 → 24:00
+      nightMinutes += overlap(workStart, workEnd, nightStartMinutes, 24 * 60);
+      // Tramo nocturno de la madrugada siguiente: 00:00 → 06:00
+      if (workEnd > 24 * 60) {
+        nightMinutes += overlap(workStart, workEnd, 24 * 60, 24 * 60 + nightEndMinutes);
+      } else {
+        nightMinutes += overlap(workStart, workEnd, 0, nightEndMinutes);
+        }
+
+      return nightMinutes / 60;
+    }
+
+    function calculateHours() {
+      if (!workStartInput || !workEndInput || !currentSelectedDate) return;
+
+      const startTime = workStartInput.value;
+      const endTime = workEndInput.value;
+
+      if (!startTime || !endTime) {
+        updateHoursDisplay(0, 0, 0, 0);
+        return;
+      }
+
+      const startMinutes = timeToMinutes(startTime);
+      const endMinutes = timeToMinutes(endTime);
+      
+      let totalMinutes = endMinutes - startMinutes;
+      if (totalMinutes < 0) {
+        totalMinutes += 24 * 60; // Turno cruza medianoche
+      }
+
+      const totalHours = totalMinutes / 60;
+      const extraHours = Math.max(0, totalHours - standardDailyHours);
+      const nightHours = calculateNightHours(startTime, endTime);
+
+      // Calcular horas festivas
+      const isHoliday = holidayCheckbox?.checked || false;
+      let holidayHours = 0;
+
+      if (isHoliday) {
+        // Si el turno cruza medianoche, solo las horas del día actual son festivas
+        if (startMinutes + totalMinutes > 24 * 60) {
+          const hoursUntilMidnight = (24 * 60 - startMinutes) / 60;
+          holidayHours = hoursUntilMidnight;
+          
+          // Verificar si el día siguiente también es festivo
+          const nextDay = new Date(currentSelectedDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          const nextDayKey = formatDateKey(nextDay);
+          const nextDayData = entryData[nextDayKey];
+          
+          if (nextDayData && nextDayData.isHoliday) {
+            const hoursAfterMidnight = (startMinutes + totalMinutes - 24 * 60) / 60;
+            holidayHours += hoursAfterMidnight;
+        }
+      } else {
+          holidayHours = totalHours;
+        }
+      }
+
+      updateHoursDisplay(totalHours, extraHours, nightHours, holidayHours);
+    }
+
+    function updateHoursDisplay(total: number, extra: number, night: number, holiday: number) {
+      const totalElement = document.getElementById('total-hours') as HTMLInputElement;
+      const extraElement = document.getElementById('extra-hours') as HTMLInputElement;
+      const nightElement = document.getElementById('night-hours') as HTMLInputElement;
+      const holidayElement = document.getElementById('holiday-hours') as HTMLInputElement;
+
+      if (totalElement) totalElement.value = total.toFixed(2);
+      if (extraElement) extraElement.value = extra.toFixed(2);
+      if (nightElement) nightElement.value = night.toFixed(2);
+      if (holidayElement) holidayElement.value = holiday.toFixed(2);
+
+      // Mostrar/ocultar campos según valores
+      const extraDisplay = document.querySelector('.extra-hours-display');
+      const nightDisplay = document.querySelector('.night-hours-display');
+      const holidayDisplay = document.querySelector('.holiday-hours-display');
+
+      if (extraDisplay) extraDisplay.classList.toggle('hidden', extra <= 0);
+      if (nightDisplay) nightDisplay.classList.toggle('hidden', night <= 0);
+      if (holidayDisplay) holidayDisplay.classList.toggle('hidden', holiday <= 0);
+    }
+
+    function formatDateKey(date: Date): string {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function getDayName(date: Date): string {
+      return dayNames[date.getDay()];
+    }
+
+    function saveDayData(position?: string) {
+      if (!currentSelectedDate) return;
+
+      const dateKey = formatDateKey(currentSelectedDate);
+      const existing = entryData[dateKey] || {};
+
+      // 1) Posición explícita (usuario cambió turno en el selector)
+      // 2) Si no hay explícita, mantener la ya guardada
+      // 3) Si no hay guardada, derivar del texto visible del botón
+      let resolvedPosition = position || existing.position || '';
+      if (!resolvedPosition) {
+        const displayed = positionText?.textContent || '';
+        if (displayed && displayed !== 'Seleccionar puesto') {
+          if (displayed in availablePositions) {
+            resolvedPosition = displayed; // clave del catálogo
+          } else if (isTimeString(displayed)) {
+            resolvedPosition = displayed; // hora como nombre
+          } else {
+            // Buscar por etiqueta de catálogo (valor string)
+            const key = Object.keys(availablePositions).find(k =>
+              typeof availablePositions[k] === 'string' ? (availablePositions[k] as string) === displayed : k === displayed
+            );
+            if (key) resolvedPosition = key;
+          }
+        }
+      }
+      
+      const data = {
+        position: resolvedPosition,
+        workStart: workStartInput?.value || '',
+        workEnd: workEndInput?.value || '',
+        isHoliday: holidayCheckbox?.checked || false,
+        totalHours: 0,
+        extraHours: 0,
+        nightHours: 0,
+        holidayHours: 0
+      };
+
+      // No modificar data.position cuando sea una hora: el nombre del turno es independiente del rango efectivo
+      // Si el nombre del turno es una hora y la hora de inicio es válida, sincronizar
+      if (isTimeString(data.position) && isTimeString(data.workStart) && data.position !== data.workStart) {
+        data.position = data.workStart;
+      }
+
+      // Calcular horas SOLO si es un puesto con horario válido
+      // Si es una posición sin horas (D, P, B, V, --), forzar todo a 0
+      if (resolvedPosition && !noHoursPositions.includes(resolvedPosition) && data.workStart && data.workEnd) {
+        const startMinutes = timeToMinutes(data.workStart);
+        const endMinutes = timeToMinutes(data.workEnd);
+        
+        let totalMinutes = endMinutes - startMinutes;
+        if (totalMinutes < 0) totalMinutes += 24 * 60;
+
+        data.totalHours = totalMinutes / 60;
+        data.extraHours = Math.max(0, data.totalHours - standardDailyHours);
+        data.nightHours = calculateNightHours(data.workStart, data.workEnd);
+        
+        // Calcular horas festivas correctamente
+        if (data.isHoliday) {
+          if (startMinutes + totalMinutes > 24 * 60) {
+            const hoursUntilMidnight = (24 * 60 - startMinutes) / 60;
+            data.holidayHours = hoursUntilMidnight;
+          } else {
+            data.holidayHours = data.totalHours;
+          }
+        }
+        
+        // Verificar día siguiente si el turno cruza medianoche
+        if (startMinutes + totalMinutes > 24 * 60 && currentSelectedDate) {
+          const nextDay = new Date(currentSelectedDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          const nextDayKey = formatDateKey(nextDay);
+          const nextDayData = entryData[nextDayKey];
+          
+          if (nextDayData && nextDayData.isHoliday) {
+            const hoursAfterMidnight = (startMinutes + totalMinutes - 24 * 60) / 60;
+            data.holidayHours += hoursAfterMidnight;
+          }
+        }
+      } else {
+        // Forzar todos los valores a 0 si no es un turno válido con horario
+        data.totalHours = 0;
+        data.extraHours = 0;
+        data.nightHours = 0;
+        data.holidayHours = 0;
+        data.workStart = '';
+        data.workEnd = '';
+      }
+
+      entryData[dateKey] = data;
+      // No sincronizar el texto del puesto con la hora efectiva; el nombre del turno solo cambia desde el selector de turno
+
+      // Disparar eventos con los datos actualizados
+      const dataChangedEvent = new CustomEvent('dataChanged', { 
+        detail: { entries: entryData } 
+      });
+      document.dispatchEvent(dataChangedEvent);
+      const dayDataEvent = new CustomEvent('dayDataUpdated');
+      document.dispatchEvent(dayDataEvent);
+
+    }
+
+    function loadDayData(date: Date) {
+      const dateKey = formatDateKey(date);
+      const data = entryData[dateKey] || {};
+
+      // Limpiar campo de turno personalizado
+      // (eliminado)
+
+      // Cargar posición
+      if (data.position) {
+        // Verificar si la posición es una hora (formato HH:MM)
+        const isCustomTime = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(data.position);
+        
+        if (isCustomTime) {
+          // Si es turno personalizado con hora, mostrar la hora
+          if (positionText) positionText.textContent = data.position;
+          if (timeSectionElement) timeSectionElement.classList.remove('hidden');
+          if (hoursSummary) hoursSummary.classList.remove('hidden');
+        } else if (data.position in availablePositions) {
+          // Si es una posición estándar, cargarla en modo silencioso (sin guardar aún)
+          selectPosition(data.position, true);
+        } else {
+          // Si no es reconocida, intentar mostrarla igual
+          if (positionText) positionText.textContent = data.position;
+          if (timeSectionElement) timeSectionElement.classList.remove('hidden');
+          if (hoursSummary) hoursSummary.classList.remove('hidden');
+        }
+      } else {
+        selectPosition('', true);
+      }
+
+      // Cargar horarios
+      if (workStartInput) workStartInput.value = data.workStart || '';
+      if (workEndInput) workEndInput.value = data.workEnd || '';
+      if (holidayCheckbox) holidayCheckbox.checked = data.isHoliday || false;
+
+      calculateHours();
+      // Guardar una vez con el estado de festivo correcto aplicado
+      saveDayData();
+    }
+
+    function showDayEditor(date: Date | null) {
+      if (!titleElement || !contentElement || !formElement || !date) return;
+
+      const dayName = getDayName(date);
+      const dayNumber = date.getDate();
+
+      titleElement.textContent = `${dayName} ${dayNumber}`;
+      
+      contentElement.style.display = 'none';
+      formElement.classList.remove('hidden');
+      if (holidayToggle) holidayToggle.classList.remove('hidden');
+
+      loadDayData(date);
+    }
+
+    // Event listeners
+    if (positionButton) {
+      positionButton.addEventListener('click', function() {
+        if (positionDropdown) {
+          isSelectOpen = !isSelectOpen;
+          positionDropdown.classList.toggle('hidden', !isSelectOpen);
+        }
+      });
+    }
+
+    // Cerrar dropdown al hacer clic fuera
+    document.addEventListener('click', function(event) {
+      if (positionDropdown && !positionDropdownContainer?.contains(event.target as Node)) {
+        positionDropdown.classList.add('hidden');
+        isSelectOpen = false;
+      }
+    });
+
+    if (workStartInput) {
+      workStartInput.addEventListener('change', function() {
+        calculateHours();
+        saveDayData();
+      });
+      workStartInput.addEventListener('input', function() {
+        calculateHours();
+        saveDayData();
+      });
+    }
+
+    if (workEndInput) {
+      workEndInput.addEventListener('change', function() {
+        calculateHours();
+        saveDayData();
+      });
+      workEndInput.addEventListener('input', function() {
+        calculateHours();
+        saveDayData();
+      });
+    }
+
+    if (holidayCheckbox) {
+      holidayCheckbox.addEventListener('change', function() {
+        calculateHours();
+        saveDayData();
+      });
+    }
+
+    // (Eliminado) Lógica de customShiftInput
+
+    // Escuchar selección de día
+    document.addEventListener('daySelected', function(event: any) {
+      currentSelectedDate = event.detail.date;
+      showDayEditor(currentSelectedDate);
+    });
+
+    // Formateo automático para inputs de tiempo
+    const timeInputs = document.querySelectorAll('.work-time-input');
+    timeInputs.forEach(input => {
+      const timeInput = input as HTMLInputElement;
+      
+      timeInput.addEventListener('input', function(e) {
+        let value = (e.target as HTMLInputElement).value;
+        
+        // Permitir solo dígitos y dos puntos
+        value = value.replace(/[^\d:]/g, '');
+        
+        // Limitar a 5 caracteres
+        if (value.length > 5) {
+          value = value.slice(0, 5);
+        }
+        
+        // Asegurar que solo haya un ":"
+        const parts = value.split(':');
+        if (parts.length > 2) {
+          value = parts[0] + ':' + parts.slice(1).join('');
+        }
+        
+        // Validación inteligente mientras se escribe
+        if (value.length >= 2 && value.includes(':')) {
+          const [hours, minutes] = value.split(':');
+          
+          // Validar horas (0-23)
+          if (hours) {
+            const h = parseInt(hours, 10);
+            if (h > 23) {
+              value = '23' + (minutes ? ':' + minutes : '');
+            }
+          }
+          
+          // Validar minutos (0-59)
+          if (minutes && minutes.length >= 2) {
+            const m = parseInt(minutes, 10);
+            if (m > 59) {
+              const h = value.split(':')[0];
+              value = h + ':59';
+            }
+          }
+        }
+        
+        // Formateo automático
+        if (value.length === 2 && !value.includes(':')) {
+          value = value + ':';
+        }
+        
+        timeInput.value = value;
+      });
+      
+      timeInput.addEventListener('blur', function(e) {
+        let value = (e.target as HTMLInputElement).value;
+        
+        if (value && value.length === 5) {
+          const [hours, minutes] = value.split(':');
+          const h = parseInt(hours, 10);
+          const m = parseInt(minutes, 10);
+          
+          // Validar y formatear
+          if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+            timeInput.value = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+          } else {
+            // Si no es válido, mostrar mensaje o corregir
+            if (h > 23) {
+              timeInput.value = '23:59';
+            } else if (m > 59) {
+              timeInput.value = `${h.toString().padStart(2, '0')}:59`;
+            } else {
+              timeInput.value = '00:00';
+            }
+          }
+        } else if (value && value.length === 4 && !value.includes(':')) {
+          // Si tiene 4 dígitos sin :, añadirlo
+          const paddedValue = value.padStart(4, '0');
+          const formatted = `${paddedValue.slice(0, 2)}:${paddedValue.slice(2)}`;
+          const [h, m] = formatted.split(':').map(Number);
+          
+          if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+            timeInput.value = formatted;
+          } else {
+            timeInput.value = '00:00';
+          }
+        } else if (value && !value.includes(':')) {
+          // Si tiene menos de 4 dígitos, intentar formatear
+          const paddedValue = value.padStart(4, '0');
+          const formatted = `${paddedValue.slice(0, 2)}:${paddedValue.slice(2)}`;
+          const [h, m] = formatted.split(':').map(Number);
+          
+          if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+            timeInput.value = formatted;
+          } else {
+            timeInput.value = '';
+          }
+        }
+      });
+    });
+
+    // Inicializar dropdown
+    initializePositionDropdown();
+  });
+</script>

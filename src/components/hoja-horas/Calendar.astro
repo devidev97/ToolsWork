@@ -1,0 +1,246 @@
+---
+interface Props {
+  className?: string;
+}
+
+const { className = '' } = Astro.props;
+---
+
+<div class={`${className}`}>
+  <!-- Header -->
+  <div class="flex items-center justify-between px-4 py-2">
+    <button class="p-1 rounded-full hover:bg-gray-200 prev-month" aria-label="Mes anterior">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <div class="text-center font-medium month-year" id="month-year">
+      octubre 2025
+    </div>
+    <button class="p-1 rounded-full hover:bg-gray-200 next-month" aria-label="Mes siguiente">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Days of week -->
+  <div class="grid grid-cols-7 mb-2">
+    <div class="text-center text-xs font-medium text-gray-900 py-2">lu</div>
+    <div class="text-center text-xs font-medium text-gray-900 py-2">ma</div>
+    <div class="text-center text-xs font-medium text-gray-900 py-2">mi</div>
+    <div class="text-center text-xs font-medium text-gray-900 py-2">ju</div>
+    <div class="text-center text-xs font-medium text-gray-900 py-2">vi</div>
+    <div class="text-center text-xs font-medium text-gray-900 py-2">sá</div>
+    <div class="text-center text-xs font-medium text-gray-900 py-2">do</div>
+  </div>
+
+  <!-- Calendar body -->
+  <div id="calendar-body">
+    <!-- Days will be generated dynamically -->
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar almacenamiento compartido si no existe
+    if (!(window as any).timeEntriesData) {
+      (window as any).timeEntriesData = {};
+    }
+    
+    let currentMonth = new Date();
+    let selectedDate: Date | null = null;
+
+    const monthNames = [
+      "enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+    ];
+
+    const monthYearElement = document.getElementById('month-year');
+    const calendarBodyElement = document.getElementById('calendar-body');
+    const prevButton = document.querySelector('.prev-month');
+    const nextButton = document.querySelector('.next-month');
+
+    // Helper functions
+    function format(date: Date, formatStr: string): string {
+      if (formatStr === 'd') {
+        return date.getDate().toString();
+      }
+      return date.toString();
+    }
+
+    function addMonths(date: Date, months: number): Date {
+      const result = new Date(date);
+      result.setMonth(result.getMonth() + months);
+      return result;
+    }
+
+    function subMonths(date: Date, months: number): Date {
+      const result = new Date(date);
+      result.setMonth(result.getMonth() - months);
+      return result;
+    }
+
+    function startOfMonth(date: Date): Date {
+      return new Date(date.getFullYear(), date.getMonth(), 1);
+    }
+
+    function endOfMonth(date: Date): Date {
+      return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    }
+
+    function startOfWeek(date: Date, options?: { weekStartsOn: number }): Date {
+      const result = new Date(date);
+      const day = result.getDay();
+      const weekStartsOn = options?.weekStartsOn || 0;
+      const diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
+      result.setDate(result.getDate() - diff);
+      return result;
+    }
+
+    function endOfWeek(date: Date, options?: { weekStartsOn: number }): Date {
+      const result = new Date(date);
+      const day = result.getDay();
+      const weekStartsOn = options?.weekStartsOn || 0;
+      const diff = (day < weekStartsOn ? -7 : 0) + 6 - (day - weekStartsOn);
+      result.setDate(result.getDate() + diff);
+      return result;
+    }
+
+    function isSameMonth(date1: Date, date2: Date): boolean {
+      return date1.getFullYear() === date2.getFullYear() && 
+             date1.getMonth() === date2.getMonth();
+    }
+
+    function isSameDay(date1: Date, date2: Date): boolean {
+      return date1.getFullYear() === date2.getFullYear() &&
+             date1.getMonth() === date2.getMonth() &&
+             date1.getDate() === date2.getDate();
+    }
+
+    function addDays(date: Date, days: number): Date {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
+    }
+
+    function getDayData(date: Date) {
+      try {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        const dateKey = `${y}-${m}-${d}`;
+        const timeEntriesData = (window as any).timeEntriesData || {};
+        return timeEntriesData[dateKey] || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Navigation functions
+    const prevMonth = () => {
+      currentMonth = subMonths(currentMonth, 1);
+      renderCalendar();
+    };
+
+    const nextMonth = () => {
+      currentMonth = addMonths(currentMonth, 1);
+      renderCalendar();
+    };
+
+    const onDateClick = (day: Date) => {
+      selectedDate = day;
+      renderCalendar();
+      
+      // Dispatch custom event
+      const event = new CustomEvent('daySelected', { detail: { date: day } });
+      document.dispatchEvent(event);
+    };
+
+    // Render functions
+    const renderCells = () => {
+      if (!calendarBodyElement) return;
+
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(monthStart);
+      const startDateCalendar = startOfWeek(monthStart, { weekStartsOn: 1 });
+      const endDateCalendar = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+      const rows: HTMLElement[] = [];
+      let days: HTMLElement[] = [];
+      let day = new Date(startDateCalendar);
+
+      while (day <= endDateCalendar) {
+        for (let i = 0; i < 7; i++) {
+          const cloneDay = new Date(day);
+          const dayData = getDayData(cloneDay);
+          
+          const dayCell = document.createElement('div');
+          dayCell.className = `relative p-1 text-center cursor-pointer ${
+            !isSameMonth(day, monthStart) ? "text-gray-500" : ""
+          }`;
+          
+          const dayInner = document.createElement('div');
+          dayInner.className = `inline-flex items-center justify-center w-8 h-8 rounded-md ${
+            selectedDate && isSameDay(day, selectedDate)
+              ? "bg-[#002B45] text-white"
+              : "hover:bg-gray-100"
+          }`;
+          dayInner.textContent = format(day, "d");
+          
+          dayCell.appendChild(dayInner);
+          
+          // Siempre crear el espacio para la posición (tamaño fijo)
+          const positionElement = document.createElement('div');
+          positionElement.className = 'text-xs mt-0.5 font-medium';
+          positionElement.style.minHeight = '12px';
+          if (dayData && dayData.position) {
+            positionElement.textContent = dayData.position;
+          } else {
+            positionElement.innerHTML = '&nbsp;'; // Espacio reservado invisible
+          }
+          dayCell.appendChild(positionElement);
+          
+          dayCell.addEventListener('click', () => onDateClick(cloneDay));
+          
+          days.push(dayCell);
+          day = addDays(day, 1);
+        }
+        
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-7';
+        days.forEach(dayElement => row.appendChild(dayElement));
+        rows.push(row);
+        days = [];
+      }
+
+      // Clear and append rows
+      calendarBodyElement.innerHTML = '';
+      rows.forEach(row => calendarBodyElement.appendChild(row));
+    };
+
+    const renderCalendar = () => {
+      if (!monthYearElement) return;
+      
+      monthYearElement.textContent = `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+      renderCells();
+    };
+
+    // Event listeners
+    if (prevButton) {
+      prevButton.addEventListener('click', prevMonth);
+    }
+
+    if (nextButton) {
+      nextButton.addEventListener('click', nextMonth);
+    }
+
+    // Listen for data updates
+    document.addEventListener('dayDataUpdated', function() {
+      renderCalendar();
+    });
+
+    // Initial render
+    renderCalendar();
+  });
+</script>

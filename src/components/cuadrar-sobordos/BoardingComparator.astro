@@ -1,0 +1,401 @@
+---
+// BoardingComparator component
+---
+
+<div class="min-h-screen bg-[#f4f7f9] pb-12 pt-[67px]">
+  <div class="container mx-auto px-4 max-w-5xl pt-6">
+    <!-- Sección Seleccionar Archivos -->
+    <div class="mb-6">
+      <div class="grid gap-6 md:grid-cols-2">
+        <!-- Dropzone DFDS -->
+        <div>
+          <div id="dfds-dropzone" class="relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200 border-gray-300 bg-white min-h-[120px] flex items-center justify-center" data-drop-active="false">
+            <input type="file" id="dfds-file-input" accept=".xlsx,.xls,.csv" class="hidden" />
+            <div class="space-y-2" id="dfds-content">
+              <svg id="dfds-icon" class="h-8 w-8 text-gray-400 mx-auto" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <div id="dfds-spinner" class="hidden">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              </div>
+              <div class="text-gray-600">
+                <p id="dfds-text" class="text-sm">Seleccione archivo DFDS (.xlsx, .csv)</p>
+                <p id="dfds-filename" class="font-medium text-sm hidden"></p>
+                <p id="dfds-size" class="text-xs text-gray-500 hidden"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dropzone TME -->
+        <div>
+          <div id="tme-dropzone" class="relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200 border-gray-300 bg-white min-h-[120px] flex items-center justify-center" data-drop-active="false">
+            <input type="file" id="tme-file-input" accept=".xlsx,.xls,.csv" class="hidden" />
+            <div class="space-y-2" id="tme-content">
+              <svg id="tme-icon" class="h-8 w-8 text-gray-400 mx-auto" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <div id="tme-spinner" class="hidden">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              </div>
+              <div class="text-gray-600">
+                <p id="tme-text" class="text-sm">Seleccione archivo TME (.xlsx, .csv)</p>
+                <p id="tme-filename" class="font-medium text-sm hidden"></p>
+                <p id="tme-size" class="text-xs text-gray-500 hidden"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-center">
+        <div id="action-buttons" class="flex gap-4 hidden">
+          <button id="process-button" class="inline-flex items-center px-6 py-2 text-sm font-medium rounded-md text-white bg-[#002B45] focus:outline-none transition-shadow hover:shadow-md hidden">
+            <svg class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+              <path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Procesar
+          </button>
+          <button id="reset-button" class="inline-flex items-center px-6 py-2 text-sm font-medium rounded-md text-white bg-red-600 focus:outline-none transition-shadow hover:shadow-md">
+            <svg class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 12C3 7.58172 6.58172 4 11 4C14.3949 4 17.2959 6.11433 18.4576 9.15264" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M21 12C21 16.4183 17.4183 20 13 20C9.60506 20 6.70414 17.8857 5.5424 14.8474" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 12H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Reiniciar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sección de éxito -->
+    <div id="success-message" class="mb-6 border border-green-200 bg-green-50 rounded-lg p-4 flex items-center hidden">
+      <svg class="h-5 w-5 text-green-600 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+        <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <p class="text-green-700 m-0 text-sm">
+        El barco está cuadrado. Todos los tickets coinciden correctamente.
+      </p>
+    </div>
+
+    <!-- Sección Incidencias -->
+    <div id="incidences-section" class="mb-12 hidden">
+      <div class="border border-gray-300 rounded-md overflow-hidden">
+        <div class="overflow-x-auto">
+          <div class="max-h-[600px] overflow-y-auto">
+            <table class="min-w-full table-auto">
+              <thead class="bg-[#002B45] sticky top-0 z-10">
+                <tr class="border-b border-[#003366]">
+                  <th class="px-4 py-3 text-left text-sm font-medium text-white bg-[#002B45]">Ticket</th>
+                  <th class="px-4 py-3 text-left text-sm font-medium text-white bg-[#002B45]">Nombre</th>
+                  <th class="px-4 py-3 text-left text-sm font-medium text-white bg-[#002B45]">Documentación/Matrícula</th>
+                  <th class="px-4 py-3 text-left text-sm font-medium text-white bg-[#002B45]">Tipo Acceso</th>
+                  <th class="px-4 py-3 text-left text-sm font-medium text-white bg-[#002B45]">Tipo Billete</th>
+                  <th class="px-4 py-3 text-left text-sm font-medium text-white bg-[#002B45]">Estado TME</th>
+                  <th class="px-4 py-3 text-left text-sm font-medium text-white bg-[#002B45]">Estado DFDS</th>
+                </tr>
+              </thead>
+              <tbody id="incidences-tbody" class="divide-y divide-gray-300 bg-white">
+                <!-- Rows will be added dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { ExcelProcessor } from '../../lib/excelProcessor';
+  import { DataComparer, type TableRow } from '../../lib/dataComparison';
+
+  document.addEventListener('DOMContentLoaded', function() {
+    let dfdsData: any = null;
+    let tmeData: any = null;
+    let tmeCouponField = '';
+    let hasCompared = false;
+
+    const dfdsDropzone = document.getElementById('dfds-dropzone');
+    const tmeDropzone = document.getElementById('tme-dropzone');
+    const dfdsFileInput = document.getElementById('dfds-file-input') as HTMLInputElement;
+    const tmeFileInput = document.getElementById('tme-file-input') as HTMLInputElement;
+    const actionButtons = document.getElementById('action-buttons');
+    const processButton = document.getElementById('process-button');
+    const resetButton = document.getElementById('reset-button');
+    const successMessage = document.getElementById('success-message');
+    const incidencesSection = document.getElementById('incidences-section');
+    const incidencesCount = document.getElementById('incidences-count');
+    const incidencesTbody = document.getElementById('incidences-tbody');
+
+    function updateDropzone(containerId: string, hasData: boolean, fileName: string) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      if (hasData) {
+        container.classList.remove('border-gray-300');
+        container.classList.add('border-green-400', 'bg-green-50');
+      } else {
+        container.classList.remove('border-green-400', 'bg-green-50');
+        container.classList.add('border-gray-300');
+      }
+
+      const icon = container.querySelector('svg');
+      if (icon) {
+        icon.classList.toggle('text-green-600', hasData);
+        icon.classList.toggle('text-gray-400', !hasData);
+      }
+
+      const text = container.querySelector('.text-gray-600 p');
+      if (text && fileName) {
+        text.textContent = fileName;
+      }
+    }
+
+    function updateButtons() {
+      if (dfdsData && tmeData && actionButtons) {
+        actionButtons.classList.remove('hidden');
+        processButton?.classList.remove('hidden');
+      }
+    }
+
+    function showLoading(type: 'dfds' | 'tme', show: boolean) {
+      const icon = document.getElementById(`${type}-icon`);
+      const spinner = document.getElementById(`${type}-spinner`);
+      const text = document.getElementById(`${type}-text`);
+      
+      if (icon) icon.classList.toggle('hidden', show);
+      if (spinner) spinner.classList.toggle('hidden', !show);
+      if (text && show) text.textContent = 'Procesando archivo...';
+    }
+
+    function showFileInfo(type: 'dfds' | 'tme', fileName: string, size: number) {
+      const icon = document.getElementById(`${type}-icon`);
+      const text = document.getElementById(`${type}-text`);
+      const filenameEl = document.getElementById(`${type}-filename`);
+      const sizeEl = document.getElementById(`${type}-size`);
+      
+      if (icon) {
+        icon.classList.remove('text-gray-400');
+        icon.classList.add('text-green-600');
+      }
+      if (text) text.classList.add('hidden');
+      if (filenameEl) {
+        filenameEl.textContent = fileName;
+        filenameEl.classList.remove('hidden');
+        filenameEl.classList.add('text-green-700');
+      }
+      if (sizeEl) {
+        sizeEl.textContent = `${(size / 1024).toFixed(1)} KB`;
+        sizeEl.classList.remove('hidden');
+      }
+    }
+
+    async function handleFileUpload(file: File, type: 'dfds' | 'tme') {
+      try {
+        showLoading(type, true);
+        const result = await ExcelProcessor.processFile(file, type);
+        
+        if (type === 'dfds') {
+          dfdsData = result.data;
+          updateDropzone('dfds-dropzone', true, file.name);
+          showFileInfo('dfds', file.name, file.size);
+        } else {
+          tmeData = result.data;
+          updateDropzone('tme-dropzone', true, file.name);
+          showFileInfo('tme', file.name, file.size);
+          
+          // Auto-detectar campo de cupón
+          if (tmeData && tmeData.headers) {
+            const possibleFields = tmeData.headers.filter((header: string) => 
+              header.toLowerCase().includes('cupon') || 
+              header.toLowerCase().includes('ticket') || 
+              header.toLowerCase().includes('numero') ||
+              header.toLowerCase().includes('coupon')
+            );
+            if (possibleFields.length > 0) {
+              tmeCouponField = possibleFields[0];
+            }
+          }
+        }
+        
+        showLoading(type, false);
+        updateButtons();
+      } catch (error) {
+        showLoading(type, false);
+        console.error('Error processing file:', error);
+        alert('Error al procesar el archivo');
+      }
+    }
+
+    function handleCompare() {
+      if (!dfdsData || !tmeData) return;
+
+      const { incidences, stats } = DataComparer.compareData(dfdsData, tmeData, tmeCouponField);
+      hasCompared = true;
+
+      if (stats.incidences === 0 && successMessage) {
+        successMessage.classList.remove('hidden');
+        incidencesSection?.classList.add('hidden');
+      } else {
+        successMessage?.classList.add('hidden');
+        incidencesSection?.classList.remove('hidden');
+        
+        if (incidencesCount) {
+          incidencesCount.textContent = stats.incidences.toString();
+        }
+
+        if (incidencesTbody) {
+          incidencesTbody.innerHTML = '';
+          
+          incidences.forEach((row: TableRow) => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50';
+            
+            const cells = [
+              row.ticketNumber || '-',
+              row.fullName || '-',
+              row.documentOrLicense || '-',
+              row.accessType || '-',
+              row.ticketType || '-',
+              row.tmeStatus || '-',
+              row.dfdsStatus || '-'
+            ];
+
+            cells.forEach((cell, index) => {
+              const td = document.createElement('td');
+              td.className = 'px-4 py-3 text-sm';
+              
+              if (index === 0) {
+                td.classList.add('font-medium', 'text-gray-900');
+                td.textContent = cell;
+              } else if (index === 5 || index === 6) {
+                // Status badges
+                const badge = getStatusBadge(cell);
+                td.innerHTML = badge;
+              } else {
+                td.textContent = cell;
+                td.className += ' text-gray-900';
+              }
+              
+              tr.appendChild(td);
+            });
+            
+            incidencesTbody.appendChild(tr);
+          });
+        }
+      }
+    }
+
+    function getStatusBadge(status: string): string {
+      if (!status || status === '-') return '<span class="text-gray-400">-</span>';
+
+      const normalizedStatus = status.trim().toLowerCase();
+      let classes = '';
+      
+      if (normalizedStatus.startsWith("duplicado")) {
+        classes = "bg-blue-100 text-blue-800 border border-blue-200";
+      } else if (normalizedStatus === "cancelado") {
+        classes = "bg-orange-100 text-orange-800 border border-orange-200";
+      } else if (normalizedStatus === "embarcado") {
+        classes = "bg-green-100 text-green-800 border border-green-200";
+      } else if (normalizedStatus === "no embarcado") {
+        classes = "bg-red-100 text-red-800 border border-red-200";
+      } else {
+        classes = "bg-gray-100 text-gray-800 border border-gray-200";
+      }
+
+      return `<span class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md mx-auto transition-colors min-w-[100px] text-center ${classes}">${status}</span>`;
+    }
+
+    function resetAll() {
+      dfdsData = null;
+      tmeData = null;
+      tmeCouponField = '';
+      hasCompared = false;
+      
+      updateDropzone('dfds-dropzone', false, '');
+      updateDropzone('tme-dropzone', false, '');
+      
+      actionButtons?.classList.add('hidden');
+      successMessage?.classList.add('hidden');
+      incidencesSection?.classList.add('hidden');
+      
+      if (dfdsFileInput) dfdsFileInput.value = '';
+      if (tmeFileInput) tmeFileInput.value = '';
+    }
+
+    // Drag & drop handlers
+    const setupDragDrop = (dropzoneEl: HTMLElement, fileInputEl: HTMLInputElement, type: 'dfds' | 'tme') => {
+      dropzoneEl.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzoneEl.classList.add('border-green-400', 'bg-green-50');
+      });
+      
+      dropzoneEl.addEventListener('dragleave', () => {
+        if (!dfdsData && type === 'dfds' || !tmeData && type === 'tme') {
+          dropzoneEl.classList.remove('border-green-400', 'bg-green-50');
+          dropzoneEl.classList.add('border-gray-300', 'bg-white');
+        }
+      });
+      
+      dropzoneEl.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0) {
+          handleFileUpload(files[0], type);
+        }
+      });
+    };
+
+    // Event listeners
+    if (dfdsDropzone && dfdsFileInput) {
+      dfdsDropzone.addEventListener('click', () => dfdsFileInput.click());
+      setupDragDrop(dfdsDropzone, dfdsFileInput, 'dfds');
+    }
+
+    if (tmeDropzone && tmeFileInput) {
+      tmeDropzone.addEventListener('click', () => tmeFileInput.click());
+      setupDragDrop(tmeDropzone, tmeFileInput, 'tme');
+    }
+
+    if (dfdsFileInput) {
+      dfdsFileInput.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        if (target.files && target.files.length > 0) {
+          handleFileUpload(target.files[0], 'dfds');
+        }
+      });
+    }
+
+    if (tmeFileInput) {
+      tmeFileInput.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        if (target.files && target.files.length > 0) {
+          handleFileUpload(target.files[0], 'tme');
+        }
+      });
+    }
+
+    if (processButton) {
+      processButton.addEventListener('click', handleCompare);
+    }
+
+    if (resetButton) {
+      resetButton.addEventListener('click', () => {
+        window.location.reload();
+      });
+    }
+  });
+</script>
+
