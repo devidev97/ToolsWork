@@ -112,19 +112,19 @@
 	</div>
 </div>
 
-<script>
+<script is:inline>
 	document.addEventListener('DOMContentLoaded', function() {
-		let namesData: Array<{ name: string; id: string }> = [];
-		const checkedRows: { [key: string]: boolean } = {};
+		let namesData = [];
+		const checkedRows = {};
 
-		const textarea = document.getElementById('names-textarea') as HTMLTextAreaElement;
-		const actionButton = document.getElementById('action-button') as HTMLButtonElement;
-		const copyArrayButton = document.getElementById('copy-array-button') as HTMLButtonElement;
-		const resetButton = document.getElementById('reset-button') as HTMLButtonElement;
+		const textarea = document.getElementById('names-textarea');
+		const actionButton = document.getElementById('action-button');
+		const copyArrayButton = document.getElementById('copy-array-button');
+		const resetButton = document.getElementById('reset-button');
 		const inputContainer = document.getElementById('input-container');
 		const processButtonContainer = document.getElementById('process-button-container');
 		const resultsContainer = document.getElementById('results-container');
-		const searchInput = document.getElementById('search-input') as HTMLInputElement;
+		const searchInput = document.getElementById('search-input');
 		const namesTbody = document.getElementById('names-tbody');
 		const totalCountSpan = document.getElementById('total-count');
 		const checkedCountSpan = document.getElementById('checked-count');
@@ -136,7 +136,7 @@
 
 		let isTableGenerated = false;
 
-		function showAlert(message: string) {
+		function showAlert(message) {
 			if (alertMessage) alertMessage.textContent = message;
 			if (alertOverlay) alertOverlay.classList.remove('hidden');
 			if (document.body) document.body.style.overflow = 'hidden';
@@ -147,7 +147,7 @@
 			if (document.body) document.body.style.overflow = 'auto';
 		}
 
-		function showToast(message: string) {
+		function showToast(message) {
 			if (!toast) return;
 			toast.textContent = message;
 			toast.classList.remove('opacity-0', 'pointer-events-none');
@@ -230,7 +230,7 @@
 			scriptText += 'embarcarCrewlist(' + JSON.stringify(namesToCopy) + ', h, m);';
 			
 			navigator.clipboard.writeText(scriptText).then(() => {
-				showToast(`Script para ${namesToCopy.length} tripulantes copiado`);
+				showToast('Script para ' + namesToCopy.length + ' tripulantes copiado');
 			}).catch(err => {
 				console.error('Error al copiar:', err);
 				showAlert('No se pudo copiar al portapapeles');
@@ -252,7 +252,7 @@
 			// Crear objetos con IDs únicos para manejar duplicados
 			namesData = names.map((name, index) => ({
 				name: name,
-				id: `${name}-${index}`,
+				id: name + '-' + index,
 			}));
 
 			// Ordenar por nombre manteniendo los IDs únicos
@@ -279,7 +279,7 @@
 			if (searchInput) searchInput.value = '';
 		}
 
-		function toggleRow(id: string, checked: boolean) {
+		function toggleRow(id, checked) {
 			if (checked) {
 				checkedRows[id] = true;
 			} else {
@@ -301,7 +301,7 @@
 			renderTable(filtered);
 		}
 
-		function renderTable(filteredNames?: Array<{ name: string; id: string }>) {
+		function renderTable(filteredNames) {
 			const namesToRender = filteredNames || namesData;
 			
 			if (!namesTbody || !totalCountSpan) return;
@@ -317,42 +317,26 @@
 					const row = document.createElement('tr');
 					const isChecked = !!checkedRows[item.id];
 					
-					row.className = `border-b border-gray-200 ${isChecked ? 'bg-amber-100' : ''}`;
+					row.className = 'border-b border-gray-200 ' + (isChecked ? 'bg-amber-100' : '');
 
-					row.innerHTML = `
-						<td class="p-3 w-[50px] text-center">
-							<div class="inline-block relative w-5 h-5 align-top mt-0.5">
-								<input
-									type="checkbox"
-									id="checkbox-${item.id.replace(/\s+/g, '-')}"
-									class="peer sr-only"
-									${isChecked ? 'checked' : ''}
-								/>
-								<label
-									for="checkbox-${item.id.replace(/\s+/g, '-')}"
-									class="absolute inset-0 flex items-center justify-center border-2 border-gray-300 rounded-md cursor-pointer bg-white peer-checked:bg-amber-500 peer-checked:border-amber-500"
-								>
-									<svg
-										class="w-3 h-3 text-white absolute"
-										style="opacity: ${isChecked ? 1 : 0}"
-										viewBox="0 0 24 24"
-										fill="none"
-										xmlns="http://www.w3.org/2000/svg"
-									>
-										<path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-									</svg>
-								</label>
-							</div>
-						</td>
-						<td class="p-3 text-gray-800">${item.name}</td>
-					`;
+					row.innerHTML = '<td class="p-3 w-[50px] text-center">' +
+						'<div class="inline-block relative w-5 h-5 align-top mt-0.5">' +
+						'<input type="checkbox" id="checkbox-' + item.id.replace(/\s+/g, '-') + '" class="peer sr-only" ' + (isChecked ? 'checked' : '') + ' />' +
+						'<label for="checkbox-' + item.id.replace(/\s+/g, '-') + '" class="absolute inset-0 flex items-center justify-center border-2 border-gray-300 rounded-md cursor-pointer bg-white peer-checked:bg-amber-500 peer-checked:border-amber-500">' +
+						'<svg class="w-3 h-3 text-white absolute" style="opacity: ' + (isChecked ? 1 : 0) + '" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+						'<path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+						'</svg>' +
+						'</label>' +
+						'</div>' +
+						'</td>' +
+						'<td class="p-3 text-gray-800">' + item.name + '</td>';
 
 					namesTbody.appendChild(row);
 				});
 
 				// Add event listeners to checkboxes
 				namesToRender.forEach((item) => {
-					const checkbox = document.getElementById(`checkbox-${item.id.replace(/\s+/g, '-')}`) as HTMLInputElement;
+					const checkbox = document.getElementById('checkbox-' + item.id.replace(/\s+/g, '-'));
 					if (checkbox) {
 						checkbox.addEventListener('change', function(e) {
 							toggleRow(item.id, checkbox.checked);
@@ -361,13 +345,7 @@
 					}
 				});
 			} else {
-				namesTbody.innerHTML = `
-					<tr>
-						<td colspan="2" class="p-4 text-center text-gray-500">
-							No se encontraron resultados
-						</td>
-					</tr>
-				`;
+				namesTbody.innerHTML = '<tr><td colspan="2" class="p-4 text-center text-gray-500">No se encontraron resultados</td></tr>';
 			}
 		}
 
