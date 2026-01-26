@@ -226,9 +226,6 @@
 			scriptText += '    }\n';
 			scriptText += '    console.log("\\n Crewlist finalizada. Total embarcados: " + procesados);\n';
 			scriptText += '}\n\n';
-			scriptText += '// Solicitar hora y minutos al pegar el script en la consola\n';
-			scriptText += 'const h = prompt("Introduce la HORA (HH):", "08") || "08";\n';
-			scriptText += 'const m = prompt("Introduce los MINUTOS (MM):", "00") || "00";\n\n';
 			scriptText += 'embarcarCrewlist(' + JSON.stringify(namesToCopy) + ', h, m);';
 			
 			navigator.clipboard.writeText(scriptText).then(() => {
