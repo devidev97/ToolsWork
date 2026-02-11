@@ -52,6 +52,15 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
 						</svg>
 					</button>
+					<button
+						id="copy-vector-button"
+						class="p-1.5 rounded-md hover:bg-white/10 transition-colors text-white focus:outline-none"
+						title="Copiar solo el vector de tripulantes"
+					>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+						</svg>
+					</button>
 					<span class="font-medium">Tripulantes: <span id="total-count">0</span></span>
 				</div>
 				<span class="font-medium">Checkeados: <span id="checked-count">0</span></span>
@@ -80,7 +89,7 @@
 
 	<!-- Toast de éxito -->
 	<div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg transition-all duration-300 opacity-0 pointer-events-none z-[60]">
-		Array copiado al portapapeles
+		Copiado al portapapeles
 	</div>
 
 	<!-- Diálogo de alerta personalizado -->
@@ -120,6 +129,7 @@
 		const textarea = document.getElementById('names-textarea') as HTMLTextAreaElement;
 		const actionButton = document.getElementById('action-button') as HTMLButtonElement;
 		const copyArrayButton = document.getElementById('copy-array-button') as HTMLButtonElement;
+		const copyVectorButton = document.getElementById('copy-vector-button') as HTMLButtonElement;
 		const resetButton = document.getElementById('reset-button') as HTMLButtonElement;
 		const inputContainer = document.getElementById('input-container');
 		const processButtonContainer = document.getElementById('process-button-container');
@@ -231,6 +241,24 @@
 			
 			navigator.clipboard.writeText(scriptText).then(() => {
 				showToast(`Script para ${namesToCopy.length} tripulantes copiado`);
+			}).catch(err => {
+				console.error('Error al copiar:', err);
+				showAlert('No se pudo copiar al portapapeles');
+			});
+		}
+
+		function copyVectorToClipboard() {
+			if (namesData.length === 0) return;
+
+			const selectedIds = Object.keys(checkedRows).filter(id => checkedRows[id]);
+			let namesToCopy = selectedIds.length > 0
+				? namesData.filter(item => checkedRows[item.id]).map(item => item.name)
+				: namesData.map(item => item.name);
+
+			const vectorText = JSON.stringify(namesToCopy);
+
+			navigator.clipboard.writeText(vectorText).then(() => {
+				showToast(`Vector de ${namesToCopy.length} tripulantes copiado`);
 			}).catch(err => {
 				console.error('Error al copiar:', err);
 				showAlert('No se pudo copiar al portapapeles');
@@ -376,6 +404,10 @@
 		
 		if (copyArrayButton) {
 			copyArrayButton.addEventListener('click', copyArrayToClipboard);
+		}
+
+		if (copyVectorButton) {
+			copyVectorButton.addEventListener('click', copyVectorToClipboard);
 		}
 		
 		if (resetButton) {
