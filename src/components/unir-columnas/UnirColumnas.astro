@@ -5,21 +5,43 @@
 <div class="flex flex-col items-center min-h-screen bg-[#f4f7f9] pt-[67px] pb-10">
 	<!-- Contenedor principal -->
 	<div id="input-container" class="w-full max-w-[800px] px-4 pt-4">
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-			<!-- Columna A -->
-			<div class="flex flex-col">
+		<!-- Fecha y hora -->
+		<div class="flex flex-col gap-4 mb-6">
+			<div class="flex flex-col w-fit">
+				<label for="fecha-input" class="text-sm font-medium text-gray-700 mb-1">Fecha</label>
+				<input
+					id="fecha-input"
+					type="date"
+					class="w-fit min-w-[140px] px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:border-gray-400 text-gray-800"
+				/>
+			</div>
+			<div class="flex flex-col w-fit">
+				<label for="hora-input" class="text-sm font-medium text-gray-700 mb-1">Hora</label>
+				<input
+					id="hora-input"
+					type="time"
+					class="w-fit min-w-[100px] px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:border-gray-400 text-gray-800"
+				/>
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-4 mb-6 w-full">
+			<!-- Columna A (nombres) -->
+			<div class="flex flex-col w-full">
+				<label for="column-a-textarea" class="text-sm font-medium text-gray-700 mb-1">Nombres (una por línea)</label>
 				<textarea
 					id="column-a-textarea"
 					class="w-full p-3 text-base border border-gray-300 rounded-md block resize-y box-border h-[300px] bg-white focus:outline-none focus:border-gray-400 text-gray-800"
-					placeholder="Pega aquí la primera columna..."
+					placeholder="Pega aquí la columna de nombres..."
 				/>
 			</div>
-			<!-- Columna B -->
-			<div class="flex flex-col">
+			<!-- Columna B (documentos) -->
+			<div class="flex flex-col w-full">
+				<label for="column-b-textarea" class="text-sm font-medium text-gray-700 mb-1">Documentos (una por línea)</label>
 				<textarea
 					id="column-b-textarea"
 					class="w-full p-3 text-base border border-gray-300 rounded-md block resize-y box-border h-[300px] bg-white focus:outline-none focus:border-gray-400 text-gray-800"
-					placeholder="Pega aquí la segunda columna..."
+					placeholder="Pega aquí la columna de documentos..."
 				/>
 			</div>
 		</div>
@@ -53,7 +75,7 @@
 				</div>
 			</div>
 			<div class="p-4">
-				<pre id="output-pre" class="bg-gray-50 p-4 rounded-md overflow-x-auto text-sm text-gray-800 max-h-[500px] border border-gray-200"></pre>
+				<pre id="output-pre" class="bg-gray-50 p-4 rounded-md overflow-auto text-sm text-gray-800 max-h-[600px] border border-gray-200 whitespace-pre"></pre>
 			</div>
 		</div>
 
@@ -98,6 +120,8 @@
 	document.addEventListener('DOMContentLoaded', function() {
 		const textareaA = document.getElementById('column-a-textarea') as HTMLTextAreaElement;
 		const textareaB = document.getElementById('column-b-textarea') as HTMLTextAreaElement;
+		const fechaInput = document.getElementById('fecha-input') as HTMLInputElement;
+		const horaInput = document.getElementById('hora-input') as HTMLInputElement;
 		const actionButton = document.getElementById('action-button') as HTMLButtonElement;
 		const copyJsonButton = document.getElementById('copy-json-button') as HTMLButtonElement;
 		const resetButton = document.getElementById('reset-button') as HTMLButtonElement;
@@ -111,7 +135,307 @@
 		const alertOk = document.getElementById('alert-ok');
 		const toast = document.getElementById('toast');
 
-		let combinedResult: { nombres: string[], documentos: string[] } = { nombres: [], documentos: [] };
+		type Tripulante = { nombre: string; documento: string; fecha: string; hora: string; minutos: string };
+		let combinedResult: { tripulantes: Tripulante[] } = { tripulantes: [] };
+
+		const CODIGO_AUTOMATIZACION = `
+async function sincronizarDatosDesdeWeb(obj) {
+  if (!obj?.tripulantes?.length) return null;
+
+  const tituloElemento = document.querySelector('h1, h3, .protractorPageTitle');
+  if (tituloElemento && tituloElemento.innerText.includes(" on ")) {
+    const nombreBarcoDetectado = tituloElemento.innerText.split(" on ").pop().trim();
+    const selectorBarco = document.querySelector('select[name="transportation"]');
+    const selectorStatus = document.querySelector('select[name="status"]');
+
+    if (selectorBarco && selectorStatus) {
+      const opcionBarco = Array.from(selectorBarco.options).find(opt =>
+        opt.text.trim().toUpperCase().includes(nombreBarcoDetectado.toUpperCase())
+      );
+      if (opcionBarco) {
+        selectorBarco.value = opcionBarco.value;
+        selectorBarco.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      const opcionBoard = Array.from(selectorStatus.options).find(opt =>
+        opt.text.toUpperCase().includes("BOARD")
+      );
+      if (opcionBoard) {
+        selectorStatus.value = opcionBoard.value;
+        selectorStatus.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      const btnFilter = Array.from(document.querySelectorAll("button")).find(b =>
+        b.innerText.trim() === "Filter"
+      );
+      if (btnFilter) {
+        btnFilter.click();
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+  }
+
+  const input = document.getElementById('crewMemberDetails');
+  const filterBtn = document.getElementById('filterButton');
+  if (!input || !filterBtn) return null;
+
+  const buscarYExtraer = async (termino) => {
+    input.value = termino;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    filterBtn.click();
+    await new Promise(r => setTimeout(r, 900));
+
+    const filas = document.querySelectorAll('tbody tr');
+    let fila = Array.from(filas).find(f => f.innerText.toUpperCase().includes(termino.toUpperCase().trim()));
+    if (!fila && termino.trim().split(/\\s+/).length > 0) {
+      const palabras = termino.toUpperCase().trim().split(/\\s+/).filter(Boolean);
+      fila = Array.from(filas).find(f => palabras.every(p => f.innerText.toUpperCase().includes(p)));
+    }
+    if (!fila) return null;
+
+    const tdDoc = fila.querySelector('[data-test="documentNumber"]');
+    const celdas = fila.querySelectorAll('td');
+    const tdFecha = celdas[9];
+    let fecha = '', hora = '', minutos = '';
+    if (tdFecha) {
+      const m = tdFecha.innerText.trim().match(/^(\\d{2}\\.\\d{2}\\.\\d{4})\\s+(\\d{1,2}):(\\d{2})$/);
+      if (m) { fecha = m[1]; hora = m[2]; minutos = m[3]; }
+    }
+    return { documento: tdDoc?.innerText?.trim() || '', fecha, hora, minutos };
+  };
+
+  const resultado = {
+    tripulantes: obj.tripulantes.map(t => ({ ...t }))
+  };
+
+  for (let i = 0; i < resultado.tripulantes.length; i++) {
+    const t = resultado.tripulantes[i];
+    let datos = null;
+    if (t.documento?.trim()) {
+      datos = await buscarYExtraer(t.documento);
+    }
+    if (!datos && t.nombre?.trim()) {
+      datos = await buscarYExtraer(t.nombre);
+    }
+
+    if (datos) {
+      t.fecha = datos.fecha;
+      t.hora = datos.hora;
+      t.minutos = datos.minutos;
+      t.documento = datos.documento || t.documento;
+    } else {
+      console.error('No encontrado:', t.nombre, '/', t.documento);
+    }
+    await new Promise(r => setTimeout(r, 400));
+  }
+  return resultado;
+}
+
+async function embarcarCrewlist(resultado, defaults = {}) {
+  if (!resultado?.tripulantes?.length) return;
+
+  const defFecha = defaults.fecha || "28.02.2026";
+  const defHora = defaults.hora || "21";
+  const defMinutos = defaults.minutos || "30";
+
+  for (let i = 0; i < resultado.tripulantes.length; i++) {
+    const t = resultado.tripulantes[i];
+    const nombre = t.nombre;
+    const documento = t.documento?.trim() || "";
+    const fecha = t.fecha || defFecha;
+    const hora = t.hora || defHora;
+    const minutos = t.minutos || defMinutos;
+
+    document.querySelectorAll("select.form-control").forEach(sel => {
+      sel.selectedIndex = 0;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    const inputBusqueda = document.getElementById('crewMemberDetails') ||
+      document.querySelector('input[placeholder*="surname"], .form-control[type="text"]');
+    const btnFilter = document.getElementById('filterButton') ||
+      Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Filter"));
+
+    if (!inputBusqueda || !btnFilter) {
+      console.error("No embarcado:", nombre, "- No se encontró el buscador o el botón Filter.");
+      await new Promise(r => setTimeout(r, 1200));
+      continue;
+    }
+
+    let filaGanadora = null;
+    if (documento) {
+      inputBusqueda.value = documento;
+      inputBusqueda.dispatchEvent(new Event("input", { bubbles: true }));
+      btnFilter.click();
+      await new Promise(r => setTimeout(r, 900));
+      filaGanadora = Array.from(document.querySelectorAll("tbody tr")).find(fila =>
+        fila.innerText.toUpperCase().includes(documento.toUpperCase())
+      );
+    }
+    if (!filaGanadora && nombre?.trim()) {
+      const palabras = nombre.toUpperCase().trim().split(/\\s+/).filter(Boolean);
+      const terminoBusqueda = palabras.length > 0 ? palabras.reduce((a, b) => a.length >= b.length ? a : b) : "";
+      if (terminoBusqueda) {
+        inputBusqueda.value = terminoBusqueda;
+        inputBusqueda.dispatchEvent(new Event("input", { bubbles: true }));
+        btnFilter.click();
+        await new Promise(r => setTimeout(r, 900));
+        filaGanadora = Array.from(document.querySelectorAll("tbody tr")).find(fila => {
+          const textoFila = fila.innerText.toUpperCase();
+          return palabras.every(p => textoFila.includes(p));
+        });
+      }
+    }
+
+    if (filaGanadora) {
+      const checkbox = filaGanadora.querySelector('input[type="checkbox"]');
+      if (checkbox && !checkbox.checked) {
+        checkbox.click();
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      const btnBoard = Array.from(document.querySelectorAll("button")).find(b => b.innerText.trim() === "Board");
+      if (btnBoard && !btnBoard.disabled) {
+        btnBoard.click();
+        await new Promise(r => setTimeout(r, 1200));
+
+        const inputFecha = document.getElementById("date");
+        const modalInputs = document.querySelectorAll(".modal-body input");
+
+        if (inputFecha && modalInputs.length >= 3) {
+          const eventos = ["input", "change", "blur"];
+          inputFecha.value = fecha;
+          eventos.forEach(e => inputFecha.dispatchEvent(new Event(e, { bubbles: true })));
+          await new Promise(r => setTimeout(r, 600));
+
+          modalInputs[1].value = hora;
+          modalInputs[2].value = minutos;
+          [modalInputs[1], modalInputs[2]].forEach(input => {
+            eventos.forEach(e => input.dispatchEvent(new Event(e, { bubbles: true })));
+          });
+          await new Promise(r => setTimeout(r, 600));
+
+          const btnConfirmar = document.getElementById("modalAccept") ||
+            Array.from(document.querySelectorAll("button")).find(b =>
+              b.innerText.trim() === "Board" && b.classList.contains("btn-success")
+            );
+
+          if (btnConfirmar) {
+            btnConfirmar.click();
+          } else {
+            console.error("No embarcado:", nombre, "- No se encontró el botón de confirmar.");
+          }
+        } else {
+          console.error("No embarcado:", nombre, "- No se encontró el modal de fecha/hora.");
+        }
+      } else {
+        console.error("No embarcado:", nombre, "- Botón Board no disponible.");
+      }
+    } else {
+      console.error("No embarcado:", nombre, "- No se pudo localizar en la tabla.");
+    }
+
+    await new Promise(r => setTimeout(r, 1200));
+  }
+}
+
+async function desembarcarCrewlist(defaults = {}) {
+  const fecha = defaults.fecha || "28.02.2026";
+  const hora = defaults.hora || "21";
+  const minutos = defaults.minutos || "30";
+
+  const tituloElemento = document.querySelector('h1, h3, .protractorPageTitle');
+  if (tituloElemento && tituloElemento.innerText.includes(" on ")) {
+    const nombreBarcoDetectado = tituloElemento.innerText.split(" on ").pop().trim();
+    const selectorBarco = document.querySelector('select[name="transportation"]');
+    const selectorStatus = document.querySelector('select[name="status"]');
+
+    if (selectorBarco && selectorStatus) {
+      const opcionBarco = Array.from(selectorBarco.options).find(opt =>
+        opt.text.trim().toUpperCase().includes(nombreBarcoDetectado.toUpperCase())
+      );
+      if (opcionBarco) {
+        selectorBarco.value = opcionBarco.value;
+        selectorBarco.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      const opcionBoard = Array.from(selectorStatus.options).find(opt =>
+        opt.text.toUpperCase().includes("BOARD")
+      );
+      if (opcionBoard) {
+        selectorStatus.value = opcionBoard.value;
+        selectorStatus.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      const btnFilter = Array.from(document.querySelectorAll("button")).find(b =>
+        b.innerText.trim() === "Filter"
+      );
+      if (btnFilter) {
+        btnFilter.click();
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+  }
+
+  while (true) {
+    const filas = document.querySelectorAll('tbody tr');
+    if (!filas.length) break;
+
+    const allCheckbox = document.querySelector('[data-test="allCrewCheckbox"]');
+    const btnDeboard = document.getElementById('deboard');
+    if (!allCheckbox || !btnDeboard) break;
+
+    if (!allCheckbox.checked) allCheckbox.click();
+    await new Promise(r => setTimeout(r, 500));
+
+    btnDeboard.click();
+    await new Promise(r => setTimeout(r, 1200));
+
+    const inputFecha = document.getElementById("date");
+    const modalInputs = document.querySelectorAll(".modal-body input");
+    if (inputFecha && modalInputs.length >= 3) {
+      const eventos = ["input", "change", "blur"];
+      inputFecha.value = fecha;
+      eventos.forEach(e => inputFecha.dispatchEvent(new Event(e, { bubbles: true })));
+      await new Promise(r => setTimeout(r, 600));
+
+      modalInputs[1].value = hora;
+      modalInputs[2].value = minutos;
+      [modalInputs[1], modalInputs[2]].forEach(input => {
+        eventos.forEach(e => input.dispatchEvent(new Event(e, { bubbles: true })));
+      });
+      await new Promise(r => setTimeout(r, 600));
+
+      const btnConfirmar = document.getElementById("modalAccept") ||
+        Array.from(document.querySelectorAll("button")).find(b =>
+          (b.innerText.trim() === "Deboard" || b.innerText.trim() === "Board") && b.closest(".modal")
+        ) ||
+        Array.from(document.querySelectorAll("button")).find(b =>
+          b.innerText.trim() === "Deboard" || (b.innerText.trim() === "Board" && b.classList.contains("btn-success"))
+        );
+
+      if (btnConfirmar) btnConfirmar.click();
+    }
+    await new Promise(r => setTimeout(r, 1500));
+
+    const nextBtn = document.querySelector('.table-pagination-numbers a[aria-label="Next"]') ||
+      Array.from(document.querySelectorAll('.table-pagination-numbers a, .table-pagination-numbers button')).find(el =>
+        el.textContent.trim() === '»'
+      ) ||
+      Array.from(document.querySelectorAll('.pagination a, .table-pagination a')).find(el =>
+        el.textContent.trim() === '»' || el.getAttribute('aria-label') === 'Next'
+      );
+
+    if (!nextBtn || nextBtn.classList.contains('disabled') || nextBtn.getAttribute('disabled')) break;
+
+    nextBtn.click();
+    await new Promise(r => setTimeout(r, 2000));
+  }
+}
+
+// EJECUCIÓN (pegar en consola de Flexways):
+// const obj = { tripulantes: [{ nombre: "...", documento: "...", fecha: "28.02.2026", hora: "21", minutos: "30" }] };
+// const resultado = await sincronizarDatosDesdeWeb(obj);
+// await embarcarCrewlist(resultado);
+// await desembarcarCrewlist({ fecha: "28.02.2026", hora: "21", minutos: "30" });
+`.trim();
 
 		function showAlert(message: string) {
 			if (alertMessage) alertMessage.textContent = message;
@@ -138,9 +462,21 @@
 		function processColumns() {
 			const textA = textareaA.value.trim();
 			const textB = textareaB.value.trim();
+			const fechaRaw = fechaInput?.value ?? '';
+			const horaRaw = horaInput?.value ?? '';
 
 			if (!textA && !textB) {
-				showAlert('Debes rellenar al menos una columna');
+				showAlert('Debes rellenar al menos una columna (nombres o documentos)');
+				return;
+			}
+
+			if (!fechaRaw) {
+				showAlert('Debes indicar la fecha');
+				return;
+			}
+
+			if (!horaRaw) {
+				showAlert('Debes indicar la hora');
 				return;
 			}
 
@@ -148,19 +484,36 @@
 			const linesB = textB ? textB.split('\n').map(l => l.trim()).filter(l => l !== '') : [];
 
 			if (linesA.length > 0 && linesB.length > 0 && linesA.length !== linesB.length) {
-				showAlert(`Advertencia: Las columnas tienen distinto número de líneas (A: ${linesA.length}, B: ${linesB.length})`);
+				showAlert(`Advertencia: Las columnas tienen distinto número de líneas (nombres: ${linesA.length}, documentos: ${linesB.length})`);
 			}
 
-			combinedResult = {
-				nombres: linesA,
-				documentos: linesB
-			};
+			// fecha: YYYY-MM-DD -> DD.MM.YYYY
+			const [y, m, d] = fechaRaw.split('-');
+			const fecha = `${d}.${m}.${y}`;
 
+			// hora: HH:MM -> hora="HH", minutos="MM"
+			const [hora, minutos] = horaRaw.split(':');
+
+			const maxLen = Math.max(linesA.length, linesB.length);
+			const tripulantes: Tripulante[] = [];
+			for (let i = 0; i < maxLen; i++) {
+				tripulantes.push({
+					nombre: linesA[i] ?? '',
+					documento: linesB[i] ?? '',
+					fecha,
+					hora,
+					minutos
+				});
+			}
+
+			combinedResult = { tripulantes };
+
+			const objStr = 'const obj = ' + JSON.stringify(combinedResult, null, 2) + ';\n\n';
 			if (outputPre) {
-				outputPre.textContent = 'const obj = ' + JSON.stringify(combinedResult, null, 2) + ';';
+				outputPre.textContent = objStr + CODIGO_AUTOMATIZACION;
 			}
 			if (totalCountSpan) {
-				totalCountSpan.textContent = Math.max(linesA.length, linesB.length).toString();
+				totalCountSpan.textContent = tripulantes.length.toString();
 			}
 
 			inputContainer?.classList.add('hidden');
@@ -170,16 +523,18 @@
 		function resetForm() {
 			textareaA.value = '';
 			textareaB.value = '';
-			combinedResult = { nombres: [], documentos: [] };
+			if (fechaInput) fechaInput.value = '';
+			if (horaInput) horaInput.value = '';
+			combinedResult = { tripulantes: [] };
 			inputContainer?.classList.remove('hidden');
 			resultsContainer?.classList.add('hidden');
 		}
 
 		function copyToClipboard() {
-			if (combinedResult.nombres.length === 0) return;
-			const text = 'const obj = ' + JSON.stringify(combinedResult, null, 2) + ';';
+			if (combinedResult.tripulantes.length === 0) return;
+			const text = 'const obj = ' + JSON.stringify(combinedResult, null, 2) + ';\n\n' + CODIGO_AUTOMATIZACION;
 			navigator.clipboard.writeText(text).then(() => {
-				showToast('Objeto copiado al portapapeles');
+				showToast('Objeto y código copiados al portapapeles');
 			}).catch(err => {
 				console.error('Error al copiar:', err);
 				showAlert('No se pudo copiar');
