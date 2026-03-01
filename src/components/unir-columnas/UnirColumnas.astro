@@ -256,7 +256,7 @@ async function embarcarCrewlist(resultado, defaults = {}) {
       Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Filter"));
 
     if (!inputBusqueda || !btnFilter) {
-      console.error("No embarcado:", nombre, "- No se encontró el buscador o el botón Filter.");
+      console.error("No embarcado:", nombre, "/", documento, "- No se encontró el buscador o el botón Filter.");
       await new Promise(r => setTimeout(r, 1200));
       continue;
     }
@@ -322,16 +322,16 @@ async function embarcarCrewlist(resultado, defaults = {}) {
           if (btnConfirmar) {
             btnConfirmar.click();
           } else {
-            console.error("No embarcado:", nombre, "- No se encontró el botón de confirmar.");
+            console.error("No embarcado:", nombre, "/", documento, "- No se encontró el botón de confirmar.");
           }
         } else {
-          console.error("No embarcado:", nombre, "- No se encontró el modal de fecha/hora.");
+          console.error("No embarcado:", nombre, "/", documento, "- No se encontró el modal de fecha/hora.");
         }
       } else {
-        console.error("No embarcado:", nombre, "- Botón Board no disponible.");
+        console.error("No embarcado:", nombre, "/", documento, "- Botón Board no disponible.");
       }
     } else {
-      console.error("No embarcado:", nombre, "- No se pudo localizar en la tabla.");
+      console.error("No embarcado:", nombre, "/", documento, "- No se pudo localizar en la tabla.");
     }
 
     await new Promise(r => setTimeout(r, 1200));
@@ -430,11 +430,31 @@ async function desembarcarCrewlist(defaults = {}) {
   }
 }
 
+async function main(obj) {
+  if (!obj?.tripulantes?.length) {
+    console.error("main: obj debe tener tripulantes.");
+    return;
+  }
+  const resultado = await sincronizarDatosDesdeWeb(obj);
+  if (!resultado) return;
+
+  const primero = obj.tripulantes[0];
+  const defaultsDesembarque = {
+    fecha: primero.fecha || "28.02.2026",
+    hora: primero.hora || "21",
+    minutos: primero.minutos || "30"
+  };
+  await desembarcarCrewlist(defaultsDesembarque);
+  await embarcarCrewlist(resultado);
+}
+
 // EJECUCIÓN (pegar en consola de Flexways):
 // const obj = { tripulantes: [{ nombre: "...", documento: "...", fecha: "28.02.2026", hora: "21", minutos: "30" }] };
+// await main(obj);
+// O por pasos:
 // const resultado = await sincronizarDatosDesdeWeb(obj);
-// await embarcarCrewlist(resultado);
 // await desembarcarCrewlist({ fecha: "28.02.2026", hora: "21", minutos: "30" });
+// await embarcarCrewlist(resultado);
 `.trim();
 
 		function showAlert(message: string) {
