@@ -139,322 +139,552 @@
 		let combinedResult: { tripulantes: Tripulante[] } = { tripulantes: [] };
 
 		const CODIGO_AUTOMATIZACION = `
-async function sincronizarDatosDesdeWeb(obj) {
-  if (!obj?.tripulantes?.length) return null;
+// ─── UTILIDADES ───────────────────────────────────────────────────
 
-  const tituloElemento = document.querySelector('h1, h3, .protractorPageTitle');
-  if (tituloElemento && tituloElemento.innerText.includes(" on ")) {
-    const nombreBarcoDetectado = tituloElemento.innerText.split(" on ").pop().trim();
+function esperar(ms) {
+    return new Promise(r => setTimeout(r, ms));
+}
+
+function clickEnZonaAngular(btn) {
+    const key = Object.getOwnPropertyNames(btn).find(k => k.includes('zone') && k.includes('click'));
+    const tasks = key ? btn[key] : null;
+    const zone = tasks && tasks[0] && tasks[0].zone;
+    if (zone && typeof zone.run === 'function') {
+        zone.run(() => btn.click());
+    } else {
+        btn.focus();
+        const rect = btn.getBoundingClientRect();
+        const opts = { bubbles: true, cancelable: true, view: window, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+        btn.dispatchEvent(new MouseEvent('mousedown', opts));
+        btn.dispatchEvent(new MouseEvent('mouseup', opts));
+        btn.dispatchEvent(new MouseEvent('click', opts));
+    }
+}
+
+function escribirBuscador(valor) {
+    const input = document.getElementById('crewMemberDetails');
+    if (input) {
+        input.value = valor;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+}
+
+function limpiarBuscador() {
+    escribirBuscador('');
+}
+
+function resetearSelectores() {
+    document.querySelectorAll("select.form-control").forEach(sel => {
+        sel.selectedIndex = 0;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+}
+
+function checkFila(fila) {
+    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+    const indice = fila - 1;
+    const cb = checkboxes[indice];
+
+    if (cb) {
+        if (!cb.checked) {
+            cb.click();
+            cb.checked = true;
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+            cb.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    } else {
+        console.warn(\`No existe la fila \${fila}. Solo hay \${checkboxes.length} disponibles.\`);
+    }
+}
+
+// ─── PAGINACIÓN ───────────────────────────────────────────────────
+
+function clickPaginaAnterior() {
+    const prevLink =
+        document.querySelector('.table-pagination-numbers li.pagination-prev a.page-link') ||
+        document.querySelector('ul.pagination li.pagination-prev a.page-link') ||
+        document.querySelector('.table-pagination-numbers a.page-link');
+
+    if (!prevLink) return false;
+
+    const li = prevLink.closest('li');
+    if (li && li.classList.contains('disabled')) return false;
+
+    prevLink.click();
+    const active =
+        document.querySelector('.table-pagination-numbers ul.pagination li.active a.page-link') ||
+        document.querySelector('ul.pagination li.active a.page-link');
+    if (!active) return false;
+    const num = parseInt(active.textContent.trim(), 10);
+    return Number.isNaN(num) ? false : num;
+}
+
+function clickPaginaSiguiente() {
+    const nextLink =
+        document.querySelector('.table-pagination-numbers a[aria-label="Next"]') ||
+        document.querySelector('ul.pagination li.pagination-next a.page-link') ||
+        Array.from(document.querySelectorAll('.table-pagination-numbers a, .pagination a')).find(el =>
+            el.textContent.trim() === '»' && !el.closest('.pagination-prev')
+        );
+
+    if (!nextLink) return false;
+
+    const li = nextLink.closest('li');
+    if (li && (li.classList.contains('disabled') || nextLink.getAttribute('disabled'))) return false;
+
+    nextLink.click();
+    return true;
+}
+
+async function irAUltimaPagina() {
+    while (clickPaginaSiguiente()) {
+        await esperar(2000);
+    }
+}
+
+// ─── TABLA: LECTURA Y PARSEO ─────────────────────────────────────
+
+const CLAVES_COLUMNAS = ['selected', 'lastName', 'firstName', 'position', 'birthDate', 'nationality', 'documentType', 'documentNumber', 'transportation', 'boardDeboardDate', 'status', 'actions'];
+
+function obtenerCabecerasTabla() {
+    const ths = document.querySelectorAll('table.table thead th, table thead th');
+    if (!ths.length) return null;
+    return Array.from(ths).map(th => {
+        const t = th.textContent.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
+        return t.replace(/\\s+/g, ' ').split(' ').filter(Boolean).map((s, i) => i === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)).join('');
+    });
+}
+
+function obtenerClaveCelda(td, indice, cabeceras) {
+    const dataTest = td.getAttribute('data-test');
+    if (dataTest) return dataTest;
+    if (cabeceras && cabeceras[indice]) return cabeceras[indice];
+    return CLAVES_COLUMNAS[indice] || \`column\${indice}\`;
+}
+
+function extraerFila(fila) {
+    const filas = document.querySelectorAll('tbody tr');
+    const indice = typeof fila === 'number' ? fila - 1 : fila;
+    const tr = typeof fila === 'number' ? filas[indice] : fila;
+
+    if (!tr) return null;
+
+    const cabeceras = obtenerCabecerasTabla();
+    const celdas = tr.querySelectorAll('td');
+    const obj = {};
+
+    celdas.forEach((td, i) => {
+        const clave = obtenerClaveCelda(td, i, cabeceras);
+        if (i === 0) {
+            const check = td.querySelector('input[type="checkbox"]');
+            obj[clave] = check ? check.checked : false;
+        } else {
+            obj[clave] = td.textContent.trim();
+        }
+    });
+
+    const idFila = tr.id || tr.getAttribute('id');
+    if (idFila) obj.id = idFila;
+
+    return obj;
+}
+
+function parsearFechaHoraDeTabla(boardDeboardDate) {
+    if (!boardDeboardDate) return null;
+    const texto = boardDeboardDate.trim();
+    const m = texto.match(/^(\\d{2}\\.\\d{2}\\.\\d{4})\\s+(\\d{1,2}):(\\d{2})$/);
+    if (m) {
+        return { fecha: m[1], hora: m[2], minutos: m[3] };
+    }
+    const partes = texto.split(/[\\s]+/);
+    const fecha = partes[0] || '';
+    const horaParte = partes[1] || '';
+    const [hora, minutos] = horaParte.split(':');
+    return {
+        fecha: fecha,
+        hora: hora || '00',
+        minutos: minutos || '00'
+    };
+}
+
+// ─── SELECTORES DE BARCO Y STATUS ────────────────────────────────
+
+async function ajustarSelectoresPorBarco(opciones = {}) {
+    const statusTexto = (opciones.statusTexto || 'BOARD').toUpperCase();
+    const aplicarFiltro = opciones.aplicarFiltro !== false;
+
+    const tituloElemento = document.querySelector('h1, h3, .protractorPageTitle');
+    if (!tituloElemento || !tituloElemento.innerText.includes(' on ')) return false;
+
+    const nombreBarcoDetectado = tituloElemento.innerText.split(' on ').pop().trim();
+    const barcoTexto = (opciones.barcoTexto || nombreBarcoDetectado).toUpperCase();
     const selectorBarco = document.querySelector('select[name="transportation"]');
     const selectorStatus = document.querySelector('select[name="status"]');
 
-    if (selectorBarco && selectorStatus) {
-      const opcionBarco = Array.from(selectorBarco.options).find(opt =>
-        opt.text.trim().toUpperCase().includes(nombreBarcoDetectado.toUpperCase())
-      );
-      if (opcionBarco) {
+    if (!selectorBarco || !selectorStatus) return false;
+
+    const opcionBarco = Array.from(selectorBarco.options).find(opt =>
+        opt.text.trim().toUpperCase().includes(barcoTexto)
+    );
+    if (opcionBarco) {
         selectorBarco.value = opcionBarco.value;
-        selectorBarco.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      const opcionBoard = Array.from(selectorStatus.options).find(opt =>
-        opt.text.toUpperCase().includes("BOARD")
-      );
-      if (opcionBoard) {
-        selectorStatus.value = opcionBoard.value;
-        selectorStatus.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      const btnFilter = Array.from(document.querySelectorAll("button")).find(b =>
-        b.innerText.trim() === "Filter"
-      );
-      if (btnFilter) {
-        btnFilter.click();
-        await new Promise(r => setTimeout(r, 2000));
-      }
-    }
-  }
-
-  const input = document.getElementById('crewMemberDetails');
-  const filterBtn = document.getElementById('filterButton');
-  if (!input || !filterBtn) return null;
-
-  const buscarYExtraer = async (termino) => {
-    input.value = termino;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    filterBtn.click();
-    await new Promise(r => setTimeout(r, 900));
-
-    const filas = document.querySelectorAll('tbody tr');
-    let fila = Array.from(filas).find(f => f.innerText.toUpperCase().includes(termino.toUpperCase().trim()));
-    if (!fila && termino.trim().split(/\\s+/).length > 0) {
-      const palabras = termino.toUpperCase().trim().split(/\\s+/).filter(Boolean);
-      fila = Array.from(filas).find(f => palabras.every(p => f.innerText.toUpperCase().includes(p)));
-    }
-    if (!fila) return null;
-
-    const tdDoc = fila.querySelector('[data-test="documentNumber"]');
-    const celdas = fila.querySelectorAll('td');
-    const tdFecha = celdas[9];
-    let fecha = '', hora = '', minutos = '';
-    if (tdFecha) {
-      const m = tdFecha.innerText.trim().match(/^(\\d{2}\\.\\d{2}\\.\\d{4})\\s+(\\d{1,2}):(\\d{2})$/);
-      if (m) { fecha = m[1]; hora = m[2]; minutos = m[3]; }
-    }
-    return { documento: tdDoc?.innerText?.trim() || '', fecha, hora, minutos };
-  };
-
-  const resultado = {
-    tripulantes: obj.tripulantes.map(t => ({ ...t }))
-  };
-
-  for (let i = 0; i < resultado.tripulantes.length; i++) {
-    const t = resultado.tripulantes[i];
-    let datos = null;
-    if (t.documento?.trim()) {
-      datos = await buscarYExtraer(t.documento);
-    }
-    if (!datos && t.nombre?.trim()) {
-      datos = await buscarYExtraer(t.nombre);
+        selectorBarco.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    if (datos) {
-      t.fecha = datos.fecha;
-      t.hora = datos.hora;
-      t.minutos = datos.minutos;
-      t.documento = datos.documento || t.documento;
-    } else {
-      console.error('No encontrado:', t.nombre, '/', t.documento);
+    const opcionStatus = Array.from(selectorStatus.options).find(opt =>
+        opt.text.toUpperCase().includes(statusTexto)
+    );
+    if (opcionStatus) {
+        selectorStatus.value = opcionStatus.value;
+        selectorStatus.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    await new Promise(r => setTimeout(r, 400));
-  }
-  return resultado;
+
+    limpiarBuscador();
+
+    if (aplicarFiltro) {
+        const btnFilter = document.getElementById('filterButton') ||
+            Array.from(document.querySelectorAll('button')).find(b =>
+                b.innerText.trim() === 'Filter'
+            );
+        if (btnFilter) {
+            btnFilter.click();
+            await esperar(2000);
+        }
+    }
+
+    return true;
 }
 
-async function embarcarCrewlist(resultado, defaults = {}) {
-  if (!resultado?.tripulantes?.length) return;
+// ─── SINCRONIZACIÓN POR PÁGINAS (EFICIENTE) ──────────────────────
 
-  const defFecha = defaults.fecha || "28.02.2026";
-  const defHora = defaults.hora || "21";
-  const defMinutos = defaults.minutos || "30";
+function sincronizarTripulante(fila, objetoConTripulantes) {
+    const tripulanteFila = extraerFila(fila);
+    const lista = objetoConTripulantes.tripulantes;
+    if (!tripulanteFila || !Array.isArray(lista) || !lista.length) return false;
 
-  for (let i = 0; i < resultado.tripulantes.length; i++) {
-    const t = resultado.tripulantes[i];
-    const nombre = t.nombre;
-    const documento = t.documento?.trim() || "";
-    const fecha = t.fecha || defFecha;
-    const hora = t.hora || defHora;
-    const minutos = t.minutos || defMinutos;
+    const docFila = String(tripulanteFila.documentNumber ?? '').trim().toUpperCase();
+    const textoNombreFila = [tripulanteFila.lastName, tripulanteFila.firstName]
+        .filter(Boolean)
+        .join(' ')
+        .toUpperCase();
+    const fechaTabla = parsearFechaHoraDeTabla(tripulanteFila.boardDeboardDate);
 
-    document.querySelectorAll("select.form-control").forEach(sel => {
-      sel.selectedIndex = 0;
-      sel.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-
-    const inputBusqueda = document.getElementById('crewMemberDetails') ||
-      document.querySelector('input[placeholder*="surname"], .form-control[type="text"]');
-    const btnFilter = document.getElementById('filterButton') ||
-      Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Filter"));
-
-    if (!inputBusqueda || !btnFilter) {
-      console.error("No embarcado:", nombre, "/", documento, "- No se encontró el buscador o el botón Filter.");
-      await new Promise(r => setTimeout(r, 1200));
-      continue;
+    function actualizarDatos(tripulante) {
+        if (fechaTabla) {
+            tripulante.fecha = fechaTabla.fecha;
+            tripulante.hora = fechaTabla.hora;
+            tripulante.minutos = fechaTabla.minutos;
+        }
+        if (docFila && (!tripulante.documento || !tripulante.documento.trim())) {
+            tripulante.documento = docFila;
+        }
+        console.log(\`  ✓ \${tripulante.nombre || tripulante.documento} → \${fechaTabla?.fecha || '?'} \${fechaTabla?.hora || '?'}:\${fechaTabla?.minutos || '?'}\`);
     }
 
-    let filaGanadora = null;
-    if (documento) {
-      inputBusqueda.value = documento;
-      inputBusqueda.dispatchEvent(new Event("input", { bubbles: true }));
-      btnFilter.click();
-      await new Promise(r => setTimeout(r, 900));
-      filaGanadora = Array.from(document.querySelectorAll("tbody tr")).find(fila =>
-        fila.innerText.toUpperCase().includes(documento.toUpperCase())
-      );
-    }
-    if (!filaGanadora && nombre?.trim()) {
-      const palabras = nombre.toUpperCase().trim().split(/\\s+/).filter(Boolean);
-      const terminoBusqueda = palabras.length > 0 ? palabras.reduce((a, b) => a.length >= b.length ? a : b) : "";
-      if (terminoBusqueda) {
-        inputBusqueda.value = terminoBusqueda;
-        inputBusqueda.dispatchEvent(new Event("input", { bubbles: true }));
-        btnFilter.click();
-        await new Promise(r => setTimeout(r, 900));
-        filaGanadora = Array.from(document.querySelectorAll("tbody tr")).find(fila => {
-          const textoFila = fila.innerText.toUpperCase();
-          return palabras.every(p => textoFila.includes(p));
-        });
-      }
+    for (const t of lista) {
+        const docLista = String(t.documentNumber ?? t.documento ?? '').trim().toUpperCase();
+        if (docFila && docLista && docLista === docFila) {
+            actualizarDatos(t);
+            return true;
+        }
     }
 
-    if (filaGanadora) {
-      const checkbox = filaGanadora.querySelector('input[type="checkbox"]');
-      if (checkbox && !checkbox.checked) {
-        checkbox.click();
-        await new Promise(r => setTimeout(r, 500));
-      }
+    for (const t of lista) {
+        const nombre = String(t.nombre ?? [t.lastName, t.firstName].filter(Boolean).join(' ') ?? '').trim();
+        if (!nombre) continue;
+        const palabras = nombre.split(/\\s+/).filter(Boolean).map(p => p.toUpperCase());
+        if (palabras.length && palabras.every(p => textoNombreFila.includes(p))) {
+            actualizarDatos(t);
+            return true;
+        }
+    }
 
-      const btnBoard = Array.from(document.querySelectorAll("button")).find(b => b.innerText.trim() === "Board");
-      if (btnBoard && !btnBoard.disabled) {
-        btnBoard.click();
-        await new Promise(r => setTimeout(r, 1200));
+    return false;
+}
+
+function sincronizarTodasLasFilas(objetoConTripulantes) {
+    const filas = document.querySelectorAll('tbody tr');
+    let sincronizados = 0;
+    let noEncontrados = 0;
+    for (let i = 1; i <= filas.length; i++) {
+        const ok = sincronizarTripulante(i, objetoConTripulantes);
+        if (ok) sincronizados++;
+        else noEncontrados++;
+    }
+    return { sincronizados, noEncontrados };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FUNCIÓN PRINCIPAL 1: SINCRONIZAR DATOS DESDE LA WEB
+// ═══════════════════════════════════════════════════════════════════
+
+async function sincronizarDatosDesdeWeb(obj) {
+    if (!obj?.tripulantes?.length) {
+        console.error('sincronizarDatosDesdeWeb: obj debe tener tripulantes.');
+        return null;
+    }
+
+    const resultado = {
+        tripulantes: obj.tripulantes.map(t => ({ ...t }))
+    };
+
+    await ajustarSelectoresPorBarco({ statusTexto: 'BOARD', aplicarFiltro: true });
+    limpiarBuscador();
+    await irAUltimaPagina();
+
+    let totalSincronizados = 0;
+    let totalNoEncontrados = 0;
+    let pagina = 1;
+    let hayMasPaginas = true;
+
+    while (hayMasPaginas) {
+        console.log(\`Sincronizando página \${pagina}...\`);
+        const { sincronizados, noEncontrados } = sincronizarTodasLasFilas(resultado);
+        totalSincronizados += sincronizados;
+        totalNoEncontrados += noEncontrados;
+
+        await esperar(1000);
+
+        const resultadoPaginacion = clickPaginaAnterior();
+        if (resultadoPaginacion === false) {
+            hayMasPaginas = false;
+            console.log("Última página procesada.");
+        } else {
+            await esperar(2000);
+        }
+        pagina++;
+    }
+
+    console.log(\`\\nSincronización completada: \${totalSincronizados} coincidencias encontradas en tabla.\`);
+    return resultado;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FUNCIÓN PRINCIPAL 2: DESEMBARCAR CREWLIST
+// ═══════════════════════════════════════════════════════════════════
+
+async function desembarcarCrewlist(defaults = {}) {
+    const fecha = defaults.fecha || new Date().toLocaleDateString('es-ES').replace(/\\//g, '.');
+    const hora = (defaults.hora ?? '00').toString().padStart(2, '0');
+    const minutos = (defaults.minutos ?? '00').toString().padStart(2, '0');
+
+    await ajustarSelectoresPorBarco({ statusTexto: 'BOARD', aplicarFiltro: true });
+    limpiarBuscador();
+
+    let ronda = 1;
+
+    while (true) {
+        await esperar(2000);
+
+        const filas = document.querySelectorAll('tbody tr');
+        if (!filas.length) {
+            console.log("No hay más filas para desembarcar.");
+            break;
+        }
+
+        console.log(\`Desembarcando ronda \${ronda} (\${filas.length} filas visibles)...\`);
+
+        const allCheckbox = document.querySelector('[data-test="allCrewCheckbox"]');
+        const btnDeboard = document.getElementById('deboard') ||
+            Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Deboard');
+
+        if (!allCheckbox || !btnDeboard) {
+            console.error("desembarcarCrewlist: no se encontró checkbox global o botón Deboard.");
+            break;
+        }
+
+        if (!allCheckbox.checked) allCheckbox.click();
+        await esperar(500);
+
+        clickEnZonaAngular(btnDeboard);
+        await esperar(1200);
 
         const inputFecha = document.getElementById("date");
         const modalInputs = document.querySelectorAll(".modal-body input");
 
         if (inputFecha && modalInputs.length >= 3) {
-          const eventos = ["input", "change", "blur"];
-          inputFecha.value = fecha;
-          eventos.forEach(e => inputFecha.dispatchEvent(new Event(e, { bubbles: true })));
-          await new Promise(r => setTimeout(r, 600));
+            const eventos = ["input", "change", "blur"];
+            inputFecha.value = fecha;
+            eventos.forEach(e => inputFecha.dispatchEvent(new Event(e, { bubbles: true })));
+            await esperar(600);
 
-          modalInputs[1].value = hora;
-          modalInputs[2].value = minutos;
-          [modalInputs[1], modalInputs[2]].forEach(input => {
-            eventos.forEach(e => input.dispatchEvent(new Event(e, { bubbles: true })));
-          });
-          await new Promise(r => setTimeout(r, 600));
+            modalInputs[1].value = hora;
+            modalInputs[2].value = minutos;
+            [modalInputs[1], modalInputs[2]].forEach(input => {
+                eventos.forEach(e => input.dispatchEvent(new Event(e, { bubbles: true })));
+            });
+            await esperar(600);
 
-          const btnConfirmar = document.getElementById("modalAccept") ||
-            Array.from(document.querySelectorAll("button")).find(b =>
-              b.innerText.trim() === "Board" && b.classList.contains("btn-success")
-            );
+            const btnConfirmar = document.getElementById("modalAccept") ||
+                Array.from(document.querySelectorAll("button")).find(b =>
+                    (b.innerText.trim() === "Deboard" && b.closest(".modal"))
+                ) ||
+                Array.from(document.querySelectorAll("button")).find(b =>
+                    b.innerText.trim() === "Deboard" && b.classList.contains("btn-success")
+                );
 
-          if (btnConfirmar) {
-            btnConfirmar.click();
-          } else {
-            console.error("No embarcado:", nombre, "/", documento, "- No se encontró el botón de confirmar.");
-          }
+            if (btnConfirmar) {
+                clickEnZonaAngular(btnConfirmar);
+            } else {
+                console.error("desembarcarCrewlist: no se encontró botón confirmar en modal.");
+                break;
+            }
         } else {
-          console.error("No embarcado:", nombre, "/", documento, "- No se encontró el modal de fecha/hora.");
+            console.error("desembarcarCrewlist: no se encontró el modal de fecha/hora.");
+            break;
         }
-      } else {
-        console.error("No embarcado:", nombre, "/", documento, "- Botón Board no disponible.");
-      }
-    } else {
-      console.error("No embarcado:", nombre, "/", documento, "- No se pudo localizar en la tabla.");
+
+        ronda++;
     }
 
-    await new Promise(r => setTimeout(r, 1200));
-  }
+    console.log(\`Desembarque completado (\${ronda - 1} rondas procesadas).\`);
 }
 
-async function desembarcarCrewlist(defaults = {}) {
-  const fecha = defaults.fecha || "28.02.2026";
-  const hora = defaults.hora || "21";
-  const minutos = defaults.minutos || "30";
+// ═══════════════════════════════════════════════════════════════════
+// FUNCIÓN PRINCIPAL 3: EMBARCAR CREWLIST
+// ═══════════════════════════════════════════════════════════════════
 
-  const tituloElemento = document.querySelector('h1, h3, .protractorPageTitle');
-  if (tituloElemento && tituloElemento.innerText.includes(" on ")) {
-    const nombreBarcoDetectado = tituloElemento.innerText.split(" on ").pop().trim();
-    const selectorBarco = document.querySelector('select[name="transportation"]');
-    const selectorStatus = document.querySelector('select[name="status"]');
+async function embarcarCrewlist(resultado, defaults = {}) {
+    if (!resultado?.tripulantes?.length) return;
 
-    if (selectorBarco && selectorStatus) {
-      const opcionBarco = Array.from(selectorBarco.options).find(opt =>
-        opt.text.trim().toUpperCase().includes(nombreBarcoDetectado.toUpperCase())
-      );
-      if (opcionBarco) {
-        selectorBarco.value = opcionBarco.value;
-        selectorBarco.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      const opcionBoard = Array.from(selectorStatus.options).find(opt =>
-        opt.text.toUpperCase().includes("BOARD")
-      );
-      if (opcionBoard) {
-        selectorStatus.value = opcionBoard.value;
-        selectorStatus.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      const btnFilter = Array.from(document.querySelectorAll("button")).find(b =>
-        b.innerText.trim() === "Filter"
-      );
-      if (btnFilter) {
-        btnFilter.click();
-        await new Promise(r => setTimeout(r, 2000));
-      }
+    const defFecha = defaults.fecha || "28.02.2026";
+    const defHora = defaults.hora || "21";
+    const defMinutos = defaults.minutos || "30";
+
+    resetearSelectores();
+    limpiarBuscador();
+
+    for (let i = 0; i < resultado.tripulantes.length; i++) {
+        const t = resultado.tripulantes[i];
+        const nombre = t.nombre;
+        const documento = t.documento?.trim() || "";
+        const fecha = t.fecha || defFecha;
+        const hora = t.hora || defHora;
+        const minutos = t.minutos || defMinutos;
+
+        console.log(\`[\${i + 1}/\${resultado.tripulants.length}] Embarcando: \${nombre || documento}\`);
+
+        const inputBusqueda = document.getElementById('crewMemberDetails') ||
+            document.querySelector('input[placeholder*="surname"], .form-control[type="text"]');
+        const btnFilter = document.getElementById('filterButton') ||
+            Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Filter"));
+
+        if (!inputBusqueda || !btnFilter) {
+            console.error("  ✗ No se encontró el buscador o el botón Filter.");
+            await esperar(1200);
+            continue;
+        }
+
+        let filaGanadora = null;
+
+        if (documento) {
+            inputBusqueda.value = documento;
+            inputBusqueda.dispatchEvent(new Event("input", { bubbles: true }));
+            btnFilter.click();
+            await esperar(900);
+            filaGanadora = Array.from(document.querySelectorAll("tbody tr")).find(fila =>
+                fila.innerText.toUpperCase().includes(documento.toUpperCase())
+            );
+        }
+
+        if (!filaGanadora && nombre?.trim()) {
+            const palabras = nombre.toUpperCase().trim().split(/\\s+/).filter(Boolean);
+            const terminoBusqueda = palabras.length > 0 ? palabras.reduce((a, b) => a.length >= b.length ? a : b) : "";
+            if (terminoBusqueda) {
+                inputBusqueda.value = terminoBusqueda;
+                inputBusqueda.dispatchEvent(new Event("input", { bubbles: true }));
+                btnFilter.click();
+                await esperar(900);
+                filaGanadora = Array.from(document.querySelectorAll("tbody tr")).find(fila => {
+                    const textoFila = fila.innerText.toUpperCase();
+                    return palabras.every(p => textoFila.includes(p));
+                });
+            }
+        }
+
+        if (filaGanadora) {
+            const checkbox = filaGanadora.querySelector('input[type="checkbox"]');
+            if (checkbox && !checkbox.checked) {
+                checkbox.click();
+                await esperar(500);
+            }
+
+            const btnBoard = Array.from(document.querySelectorAll("button")).find(b => b.innerText.trim() === "Board");
+            if (btnBoard && !btnBoard.disabled) {
+                clickEnZonaAngular(btnBoard);
+                await esperar(1200);
+
+                const inputFecha = document.getElementById("date");
+                const modalInputs = document.querySelectorAll(".modal-body input");
+
+                if (inputFecha && modalInputs.length >= 3) {
+                    const eventos = ["input", "change", "blur"];
+                    inputFecha.value = fecha;
+                    eventos.forEach(e => inputFecha.dispatchEvent(new Event(e, { bubbles: true })));
+                    await esperar(600);
+
+                    modalInputs[1].value = hora;
+                    modalInputs[2].value = minutos;
+                    [modalInputs[1], modalInputs[2]].forEach(input => {
+                        eventos.forEach(e => input.dispatchEvent(new Event(e, { bubbles: true })));
+                    });
+                    await esperar(600);
+
+                    const btnConfirmar = document.getElementById("modalAccept") ||
+                        Array.from(document.querySelectorAll("button")).find(b =>
+                            b.innerText.trim() === "Board" && b.closest(".modal")
+                        ) ||
+                        Array.from(document.querySelectorAll("button")).find(b =>
+                            b.innerText.trim() === "Board" && b.classList.contains("btn-success")
+                        );
+
+                    if (btnConfirmar) {
+                        clickEnZonaAngular(btnConfirmar);
+                        console.log(\`  ✓ Embarcado con fecha \${fecha} \${hora}:\${minutos}\`);
+                    } else {
+                        console.error(\`  ✗ No se encontró botón confirmar en modal.\`);
+                    }
+                } else {
+                    console.error(\`  ✗ No se encontró el modal de fecha/hora.\`);
+                }
+            } else {
+                console.error(\`  ✗ Botón Board no disponible.\`);
+            }
+        } else {
+            console.error(\`  ✗ No se pudo localizar en la tabla: \${nombre} / \${documento}\`);
+        }
+
+        await esperar(1200);
     }
-  }
 
-  while (true) {
-    const filas = document.querySelectorAll('tbody tr');
-    if (!filas.length) break;
-
-    const allCheckbox = document.querySelector('[data-test="allCrewCheckbox"]');
-    const btnDeboard = document.getElementById('deboard');
-    if (!allCheckbox || !btnDeboard) break;
-
-    if (!allCheckbox.checked) allCheckbox.click();
-    await new Promise(r => setTimeout(r, 500));
-
-    btnDeboard.click();
-    await new Promise(r => setTimeout(r, 1200));
-
-    const inputFecha = document.getElementById("date");
-    const modalInputs = document.querySelectorAll(".modal-body input");
-    if (inputFecha && modalInputs.length >= 3) {
-      const eventos = ["input", "change", "blur"];
-      inputFecha.value = fecha;
-      eventos.forEach(e => inputFecha.dispatchEvent(new Event(e, { bubbles: true })));
-      await new Promise(r => setTimeout(r, 600));
-
-      modalInputs[1].value = hora;
-      modalInputs[2].value = minutos;
-      [modalInputs[1], modalInputs[2]].forEach(input => {
-        eventos.forEach(e => input.dispatchEvent(new Event(e, { bubbles: true })));
-      });
-      await new Promise(r => setTimeout(r, 600));
-
-      const btnConfirmar = document.getElementById("modalAccept") ||
-        Array.from(document.querySelectorAll("button")).find(b =>
-          (b.innerText.trim() === "Deboard" || b.innerText.trim() === "Board") && b.closest(".modal")
-        ) ||
-        Array.from(document.querySelectorAll("button")).find(b =>
-          b.innerText.trim() === "Deboard" || (b.innerText.trim() === "Board" && b.classList.contains("btn-success"))
-        );
-
-      if (btnConfirmar) btnConfirmar.click();
-    }
-    await new Promise(r => setTimeout(r, 1500));
-
-    const nextBtn = document.querySelector('.table-pagination-numbers a[aria-label="Next"]') ||
-      Array.from(document.querySelectorAll('.table-pagination-numbers a, .table-pagination-numbers button')).find(el =>
-        el.textContent.trim() === '»'
-      ) ||
-      Array.from(document.querySelectorAll('.pagination a, .table-pagination a')).find(el =>
-        el.textContent.trim() === '»' || el.getAttribute('aria-label') === 'Next'
-      );
-
-    if (!nextBtn || nextBtn.classList.contains('disabled') || nextBtn.getAttribute('disabled')) break;
-
-    nextBtn.click();
-    await new Promise(r => setTimeout(r, 2000));
-  }
+    console.log("Embarque completado.");
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN: ORQUESTA LAS 3 FUNCIONES
+// ═══════════════════════════════════════════════════════════════════
 
 async function main(obj) {
-  if (!obj?.tripulantes?.length) {
-    console.error("main: obj debe tener tripulantes.");
-    return;
-  }
-  const resultado = await sincronizarDatosDesdeWeb(obj);
-  if (!resultado) return;
+    if (!obj?.tripulantes?.length) {
+        console.error("main: obj debe tener tripulantes.");
+        return;
+    }
 
-  const primero = obj.tripulantes[0];
-  const defaultsDesembarque = {
-    fecha: primero.fecha || "28.02.2026",
-    hora: primero.hora || "21",
-    minutos: primero.minutos || "30"
-  };
-  await desembarcarCrewlist(defaultsDesembarque);
-  await embarcarCrewlist(resultado);
+    console.log("═══ PASO 1: Sincronizando datos desde la web ═══");
+    const resultado = await sincronizarDatosDesdeWeb(obj);
+    if (!resultado) return;
+
+    console.log("\\n═══ PASO 2: Desembarcando tripulantes ═══");
+    const primero = obj.tripulantes[0];
+    await desembarcarCrewlist({
+        fecha: primero.fecha,
+        hora: primero.hora,
+        minutos: primero.minutos
+    });
+
+    console.log("\\n═══ PASO 3: Embarcando tripulantes ═══");
+    await embarcarCrewlist(resultado);
 }
-
-// EJECUCIÓN (pegar en consola de Flexways):
-// const obj = { tripulantes: [{ nombre: "...", documento: "...", fecha: "28.02.2026", hora: "21", minutos: "30" }] };
-// await main(obj);
-// O por pasos:
-// const resultado = await sincronizarDatosDesdeWeb(obj);
-// await desembarcarCrewlist({ fecha: "28.02.2026", hora: "21", minutos: "30" });
-// await embarcarCrewlist(resultado);
 `.trim();
 
 		function showAlert(message: string) {
