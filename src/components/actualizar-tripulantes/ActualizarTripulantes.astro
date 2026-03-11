@@ -1,26 +1,26 @@
 ---
-// UnirColumnas component
+// ActualizarTripulantes component
 ---
 
 <div class="flex flex-col items-center min-h-screen bg-[#f4f7f9] pt-[67px] pb-10">
 	<!-- Contenedor principal -->
 	<div id="input-container" class="w-full max-w-[800px] px-4 pt-4">
 		<!-- Fecha y hora -->
-		<div class="flex flex-col gap-4 mb-6">
-			<div class="flex flex-col w-fit">
+		<div class="flex flex-row justify-center items-center gap-6 mb-6 w-full">
+			<div class="flex flex-col w-fit items-center">
 				<label for="fecha-input" class="text-sm font-medium text-gray-700 mb-1">Fecha</label>
 				<input
 					id="fecha-input"
 					type="date"
-					class="w-fit min-w-[140px] px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:border-gray-400 text-gray-800"
+					class="w-fit min-w-[140px] px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:border-gray-400 text-gray-800 text-center"
 				/>
 			</div>
-			<div class="flex flex-col w-fit">
+			<div class="flex flex-col w-fit items-center">
 				<label for="hora-input" class="text-sm font-medium text-gray-700 mb-1">Hora</label>
 				<input
 					id="hora-input"
 					type="time"
-					class="w-fit min-w-[100px] px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:border-gray-400 text-gray-800"
+					class="w-fit min-w-[100px] px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:border-gray-400 text-gray-800 text-center"
 				/>
 			</div>
 		</div>
@@ -116,29 +116,7 @@
 	</div>
 </div>
 
-<script>
-	document.addEventListener('DOMContentLoaded', function() {
-		const textareaA = document.getElementById('column-a-textarea') as HTMLTextAreaElement;
-		const textareaB = document.getElementById('column-b-textarea') as HTMLTextAreaElement;
-		const fechaInput = document.getElementById('fecha-input') as HTMLInputElement;
-		const horaInput = document.getElementById('hora-input') as HTMLInputElement;
-		const actionButton = document.getElementById('action-button') as HTMLButtonElement;
-		const copyJsonButton = document.getElementById('copy-json-button') as HTMLButtonElement;
-		const resetButton = document.getElementById('reset-button') as HTMLButtonElement;
-		const inputContainer = document.getElementById('input-container');
-		const resultsContainer = document.getElementById('results-container');
-		const outputPre = document.getElementById('output-pre');
-		const totalCountSpan = document.getElementById('total-count');
-		const alertOverlay = document.getElementById('alert-overlay');
-		const alertMessage = document.getElementById('alert-message');
-		const alertClose = document.getElementById('alert-close');
-		const alertOk = document.getElementById('alert-ok');
-		const toast = document.getElementById('toast');
-
-		type Tripulante = { nombre: string; documento: string; fecha: string; hora: string; minutos: string };
-		let combinedResult: { tripulantes: Tripulante[] } = { tripulantes: [] };
-
-		const CODIGO_AUTOMATIZACION = `
+<script type="text/plain" id="crewlist-src">
 // ─── UTILIDADES ───────────────────────────────────────────────────
 
 function esperar(ms) {
@@ -193,7 +171,7 @@ function checkFila(fila) {
             cb.dispatchEvent(new Event('input', { bubbles: true }));
         }
     } else {
-        console.warn(\`No existe la fila \${fila}. Solo hay \${checkboxes.length} disponibles.\`);
+        console.warn(`No existe la fila ${fila}. Solo hay ${checkboxes.length} disponibles.`);
     }
 }
 
@@ -251,7 +229,7 @@ function obtenerCabecerasTabla() {
     if (!ths.length) return null;
     return Array.from(ths).map(th => {
         const t = th.textContent.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
-        return t.replace(/\\s+/g, ' ').split(' ').filter(Boolean).map((s, i) => i === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)).join('');
+        return t.replace(/\s+/g, ' ').split(' ').filter(Boolean).map((s, i) => i === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)).join('');
     });
 }
 
@@ -259,7 +237,7 @@ function obtenerClaveCelda(td, indice, cabeceras) {
     const dataTest = td.getAttribute('data-test');
     if (dataTest) return dataTest;
     if (cabeceras && cabeceras[indice]) return cabeceras[indice];
-    return CLAVES_COLUMNAS[indice] || \`column\${indice}\`;
+    return CLAVES_COLUMNAS[indice] || `column${indice}`;
 }
 
 function extraerFila(fila) {
@@ -292,11 +270,11 @@ function extraerFila(fila) {
 function parsearFechaHoraDeTabla(boardDeboardDate) {
     if (!boardDeboardDate) return null;
     const texto = boardDeboardDate.trim();
-    const m = texto.match(/^(\\d{2}\\.\\d{2}\\.\\d{4})\\s+(\\d{1,2}):(\\d{2})$/);
+    const m = texto.match(/^(\d{2}\.\d{2}\.\d{4})\s+(\d{1,2}):(\d{2})$/);
     if (m) {
         return { fecha: m[1], hora: m[2], minutos: m[3] };
     }
-    const partes = texto.split(/[\\s]+/);
+    const partes = texto.split(/[\s]+/);
     const fecha = partes[0] || '';
     const horaParte = partes[1] || '';
     const [hora, minutos] = horaParte.split(':');
@@ -378,7 +356,7 @@ function sincronizarTripulante(fila, objetoConTripulantes) {
         if (docFila && (!tripulante.documento || !tripulante.documento.trim())) {
             tripulante.documento = docFila;
         }
-        console.log(\`  ✓ \${tripulante.nombre || tripulante.documento} → \${fechaTabla?.fecha || '?'} \${fechaTabla?.hora || '?'}:\${fechaTabla?.minutos || '?'}\`);
+        console.log(`  ✓ ${tripulante.nombre || tripulante.documento} → ${fechaTabla?.fecha || '?'} ${fechaTabla?.hora || '?'}:${fechaTabla?.minutos || '?'}`);
     }
 
     for (const t of lista) {
@@ -392,7 +370,7 @@ function sincronizarTripulante(fila, objetoConTripulantes) {
     for (const t of lista) {
         const nombre = String(t.nombre ?? [t.lastName, t.firstName].filter(Boolean).join(' ') ?? '').trim();
         if (!nombre) continue;
-        const palabras = nombre.split(/\\s+/).filter(Boolean).map(p => p.toUpperCase());
+        const palabras = nombre.split(/\s+/).filter(Boolean).map(p => p.toUpperCase());
         if (palabras.length && palabras.every(p => textoNombreFila.includes(p))) {
             actualizarDatos(t);
             return true;
@@ -438,7 +416,7 @@ async function sincronizarDatosDesdeWeb(obj) {
     let hayMasPaginas = true;
 
     while (hayMasPaginas) {
-        console.log(\`Sincronizando página \${pagina}...\`);
+        console.log(`Sincronizando página ${pagina}...`);
         const { sincronizados, noEncontrados } = sincronizarTodasLasFilas(resultado);
         totalSincronizados += sincronizados;
         totalNoEncontrados += noEncontrados;
@@ -455,7 +433,7 @@ async function sincronizarDatosDesdeWeb(obj) {
         pagina++;
     }
 
-    console.log(\`\\nSincronización completada: \${totalSincronizados} coincidencias encontradas en tabla.\`);
+    console.log(`\nSincronización completada: ${totalSincronizados} coincidencias encontradas en tabla.`);
     return resultado;
 }
 
@@ -464,7 +442,7 @@ async function sincronizarDatosDesdeWeb(obj) {
 // ═══════════════════════════════════════════════════════════════════
 
 async function desembarcarCrewlist(defaults = {}) {
-    const fecha = defaults.fecha || new Date().toLocaleDateString('es-ES').replace(/\\//g, '.');
+    const fecha = defaults.fecha || new Date().toLocaleDateString('es-ES').replace(/\//g, '.');
     const hora = (defaults.hora ?? '00').toString().padStart(2, '0');
     const minutos = (defaults.minutos ?? '00').toString().padStart(2, '0');
 
@@ -482,7 +460,7 @@ async function desembarcarCrewlist(defaults = {}) {
             break;
         }
 
-        console.log(\`Desembarcando ronda \${ronda} (\${filas.length} filas visibles)...\`);
+        console.log(`Desembarcando ronda ${ronda} (${filas.length} filas visibles)...`);
 
         const allCheckbox = document.querySelector('[data-test="allCrewCheckbox"]');
         const btnDeboard = document.getElementById('deboard') ||
@@ -537,7 +515,7 @@ async function desembarcarCrewlist(defaults = {}) {
         ronda++;
     }
 
-    console.log(\`Desembarque completado (\${ronda - 1} rondas procesadas).\`);
+    console.log(`Desembarque completado (${ronda - 1} rondas procesadas).`);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -562,7 +540,7 @@ async function embarcarCrewlist(resultado, defaults = {}) {
         const hora = t.hora || defHora;
         const minutos = t.minutos || defMinutos;
 
-        console.log(\`[\${i + 1}/\${resultado.tripulants.length}] Embarcando: \${nombre || documento}\`);
+        console.log(`[${i + 1}/${resultado.tripulantes.length}] Embarcando: ${nombre || documento}`);
 
         const inputBusqueda = document.getElementById('crewMemberDetails') ||
             document.querySelector('input[placeholder*="surname"], .form-control[type="text"]');
@@ -588,7 +566,7 @@ async function embarcarCrewlist(resultado, defaults = {}) {
         }
 
         if (!filaGanadora && nombre?.trim()) {
-            const palabras = nombre.toUpperCase().trim().split(/\\s+/).filter(Boolean);
+            const palabras = nombre.toUpperCase().trim().split(/\s+/).filter(Boolean);
             const terminoBusqueda = palabras.length > 0 ? palabras.reduce((a, b) => a.length >= b.length ? a : b) : "";
             if (terminoBusqueda) {
                 inputBusqueda.value = terminoBusqueda;
@@ -640,18 +618,18 @@ async function embarcarCrewlist(resultado, defaults = {}) {
 
                     if (btnConfirmar) {
                         clickEnZonaAngular(btnConfirmar);
-                        console.log(\`  ✓ Embarcado con fecha \${fecha} \${hora}:\${minutos}\`);
+                        console.log(`  ✓ Embarcado con fecha ${fecha} ${hora}:${minutos}`);
                     } else {
-                        console.error(\`  ✗ No se encontró botón confirmar en modal.\`);
+                        console.error(`  ✗ No se encontró botón confirmar en modal.`);
                     }
                 } else {
-                    console.error(\`  ✗ No se encontró el modal de fecha/hora.\`);
+                    console.error(`  ✗ No se encontró el modal de fecha/hora.`);
                 }
             } else {
-                console.error(\`  ✗ Botón Board no disponible.\`);
+                console.error(`  ✗ Botón Board no disponible.`);
             }
         } else {
-            console.error(\`  ✗ No se pudo localizar en la tabla: \${nombre} / \${documento}\`);
+            console.error(`  ✗ No se pudo localizar en la tabla: ${nombre} / ${documento}`);
         }
 
         await esperar(1200);
@@ -674,7 +652,7 @@ async function main(obj) {
     const resultado = await sincronizarDatosDesdeWeb(obj);
     if (!resultado) return;
 
-    console.log("\\n═══ PASO 2: Desembarcando tripulantes ═══");
+    console.log("\n═══ PASO 2: Desembarcando tripulantes ═══");
     const primero = obj.tripulantes[0];
     await desembarcarCrewlist({
         fecha: primero.fecha,
@@ -682,10 +660,34 @@ async function main(obj) {
         minutos: primero.minutos
     });
 
-    console.log("\\n═══ PASO 3: Embarcando tripulantes ═══");
+    console.log("\n═══ PASO 3: Embarcando tripulantes ═══");
     await embarcarCrewlist(resultado);
 }
-`.trim();
+    </script>
+
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		const textareaA = document.getElementById('column-a-textarea') as HTMLTextAreaElement;
+		const textareaB = document.getElementById('column-b-textarea') as HTMLTextAreaElement;
+		const fechaInput = document.getElementById('fecha-input') as HTMLInputElement;
+		const horaInput = document.getElementById('hora-input') as HTMLInputElement;
+		const actionButton = document.getElementById('action-button') as HTMLButtonElement;
+		const copyJsonButton = document.getElementById('copy-json-button') as HTMLButtonElement;
+		const resetButton = document.getElementById('reset-button') as HTMLButtonElement;
+		const inputContainer = document.getElementById('input-container');
+		const resultsContainer = document.getElementById('results-container');
+		const outputPre = document.getElementById('output-pre');
+		const totalCountSpan = document.getElementById('total-count');
+		const alertOverlay = document.getElementById('alert-overlay');
+		const alertMessage = document.getElementById('alert-message');
+		const alertClose = document.getElementById('alert-close');
+		const alertOk = document.getElementById('alert-ok');
+		const toast = document.getElementById('toast');
+
+		type Tripulante = { nombre: string; documento: string; fecha: string; hora: string; minutos: string };
+		let combinedResult: { tripulantes: Tripulante[] } = { tripulantes: [] };
+
+		const CODIGO_AUTOMATIZACION = document.getElementById('crewlist-src')?.textContent?.trim() || '';
 
 		function showAlert(message: string) {
 			if (alertMessage) alertMessage.textContent = message;
@@ -760,7 +762,7 @@ async function main(obj) {
 
 			const objStr = 'const obj = ' + JSON.stringify(combinedResult, null, 2) + ';\n\n';
 			if (outputPre) {
-				outputPre.textContent = objStr + CODIGO_AUTOMATIZACION;
+				outputPre.textContent = CODIGO_AUTOMATIZACION + '\n\n' + objStr;
 			}
 			if (totalCountSpan) {
 				totalCountSpan.textContent = tripulantes.length.toString();
@@ -782,7 +784,7 @@ async function main(obj) {
 
 		function copyToClipboard() {
 			if (combinedResult.tripulantes.length === 0) return;
-			const text = 'const obj = ' + JSON.stringify(combinedResult, null, 2) + ';\n\n' + CODIGO_AUTOMATIZACION;
+			const text = CODIGO_AUTOMATIZACION + '\n\n' + 'const obj = ' + JSON.stringify(combinedResult, null, 2) + ';\n\n';
 			navigator.clipboard.writeText(text).then(() => {
 				showToast('Objeto y código copiados al portapapeles');
 			}).catch(err => {
