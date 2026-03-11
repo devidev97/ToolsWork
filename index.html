@@ -1,51 +1,29 @@
 ---
 // ActualizarTripulantes component
+// Última actualización: funcionalidad de copia de script para consola
 ---
 
 <div class="flex flex-col items-center min-h-screen bg-[#f4f7f9] pt-[67px] pb-10">
 	<!-- Contenedor principal -->
-	<div id="input-container" class="w-full max-w-[800px] px-4 pt-4">
-		<!-- Fecha y hora -->
-		<div class="flex flex-row justify-center items-center gap-6 mb-6 w-full">
-			<div class="flex flex-col w-fit items-center">
-				<label for="fecha-input" class="text-sm font-medium text-gray-700 mb-1">Fecha</label>
-				<input
-					id="fecha-input"
-					type="date"
-					class="w-fit min-w-[140px] px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:border-gray-400 text-gray-800 text-center"
-				/>
-			</div>
-			<div class="flex flex-col w-fit items-center">
-				<label for="hora-input" class="text-sm font-medium text-gray-700 mb-1">Hora</label>
-				<input
-					id="hora-input"
-					type="time"
-					class="w-fit min-w-[100px] px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:border-gray-400 text-gray-800 text-center"
-				/>
-			</div>
+	<div id="input-container" class="w-full max-w-[650px]">
+		<!-- Textarea para pegar la lista de nombres -->
+		<div class="p-4">
+			<textarea
+				id="names-textarea"
+				class="w-full p-3 text-base border border-gray-300 rounded-md block resize-y box-border h-[250px] bg-white focus:outline-none focus:border-gray-400 text-gray-800"
+				placeholder="Pega aquí la lista de nombres (uno por línea)"
+			/>
 		</div>
+	</div>
 
-		<div class="flex flex-col gap-4 mb-6 w-full">
-			<!-- Columna A (nombres) -->
-			<div class="flex flex-col w-full">
-				<label for="names-textarea" class="text-sm font-medium text-gray-700 mb-1">Nombres (uno por línea)</label>
-				<textarea
-					id="names-textarea"
-					class="w-full p-3 text-base border border-gray-300 rounded-md block resize-y box-border h-[300px] bg-white focus:outline-none focus:border-gray-400 text-gray-800"
-					placeholder="Pega aquí la columna de nombres..."
-				></textarea>
-			</div>
-		</div>
-
-		<!-- Botón Process -->
-		<div id="process-button-container" class="flex justify-center mb-5">
-			<button
-				id="action-button"
-				class="inline-flex items-center px-6 py-2 text-sm font-medium rounded-md text-white bg-[#002B45] focus:outline-none transition-shadow hover:shadow-md"
-			>
-				Procesar
-			</button>
-		</div>
+	<!-- Botón Process -->
+	<div id="process-button-container" class="flex justify-center mb-5">
+		<button
+			id="action-button"
+			class="inline-flex items-center px-6 py-2 text-sm font-medium rounded-md text-white bg-[#002B45] focus:outline-none transition-shadow hover:shadow-md"
+		>
+			Procesar
+		</button>
 	</div>
 
 	<!-- Contenedor para el buscador y la tabla generada -->
@@ -100,15 +78,15 @@
 		</div>
 	</div>
 
-	
 	<!-- Toast de éxito -->
 	<div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg transition-all duration-300 opacity-0 pointer-events-none z-[60]">
-		Copiado al portapapeles
+		Array copiado al portapapeles
 	</div>
 
 	<!-- Diálogo de alerta personalizado -->
 	<div id="alert-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 hidden">
-		<div id="alert-dialog" class="w-full max-w-md bg-white rounded-md overflow-hidden shadow-lg">
+		<div id="alert-dialog" class="w-full max-w-md rounded-md overflow-hidden shadow-lg transition-opacity duration-200">
+			<!-- Encabezado -->
 			<div class="bg-[#001a33] px-4 py-3 flex items-center justify-between">
 				<h3 class="text-base font-medium text-white">Error</h3>
 				<button id="alert-close" class="rounded-full p-1 text-white hover:bg-white/10">
@@ -117,26 +95,29 @@
 					</svg>
 				</button>
 			</div>
-			<div class="p-4">
+
+			<!-- Cuerpo del mensaje -->
+			<div class="bg-white px-4 py-3">
 				<p id="alert-message" class="text-sm text-gray-700"></p>
 				<div class="mt-4 flex justify-end">
-					<button id="alert-ok" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium">Aceptar</button>
+					<button
+						id="alert-ok"
+						class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+					>
+						Aceptar
+					</button>
 				</div>
 			</div>
 		</div>
 	</div>
 </div>
 
-
-
-<script>
+<script is:inline>
 	document.addEventListener('DOMContentLoaded', function() {
 		let namesData = [];
 		const checkedRows = {};
 
 		const textarea = document.getElementById('names-textarea');
-		const fechaInput = document.getElementById('fecha-input');
-		const horaInput = document.getElementById('hora-input');
 		const actionButton = document.getElementById('action-button');
 		const copyArrayButton = document.getElementById('copy-array-button');
 		const resetButton = document.getElementById('reset-button');
@@ -187,24 +168,7 @@
 				: namesData.map(item => item.name);
 
 			// Script base con concatenación para evitar problemas con Astro
-			
-			const fechaRaw = fechaInput ? fechaInput.value : '';
-			const horaRaw = horaInput ? horaInput.value : '';
-
-			if (!fechaRaw) {
-				showAlert('Debes indicar la fecha');
-				return;
-			}
-			if (!horaRaw) {
-				showAlert('Debes indicar la hora');
-				return;
-			}
-			
-			const [y, m, d] = fechaRaw.split('-');
-			const fecha = `${d}.${m}.${y}`;
-			const [horaNum, minutosNum] = horaRaw.split(':');
-
-			let scriptText = 'async function embarcarCrewlist(listaNombres, fecha, hora, minutos) {\n';
+			let scriptText = 'async function embarcarCrewlist(listaNombres, hora, minutos) {\n';
 			scriptText += '    console.log("Iniciando Crewlist de " + listaNombres.length + " tripulantes...");\n';
 			scriptText += '    let procesados = 0;\n\n';
 			scriptText += '    for (let nombreCompleto of listaNombres) {\n';
@@ -263,7 +227,7 @@
 			scriptText += '    }\n';
 			scriptText += '    console.log("\\n Crewlist finalizada. Total embarcados: " + procesados);\n';
 			scriptText += '}\n\n';
-			scriptText += 'embarcarCrewlist(' + JSON.stringify(namesToCopy) + ', "' + fecha + '", "' + horaNum + '", "' + minutosNum + '");';
+			scriptText += 'embarcarCrewlist(' + JSON.stringify(namesToCopy) + ', h, m);';
 			
 			navigator.clipboard.writeText(scriptText).then(() => {
 				showToast('Script para ' + namesToCopy.length + ' tripulantes copiado');
